@@ -42,11 +42,32 @@ export const ChatScreen: React.FC<{
 
   const listRef = useRef<FlatList<ChatMessage>>(null);
 
+  // На mount — гарантированно тянем менеджера и сообщения с бэка.
+  // Раньше fetchChatMessages вызывался только если messages пустой,
+  // но App.tsx инициализирует messages из MOCK_MESSAGES → guard всегда
+  // блокировал реальный fetch, и юзер видел только мок.
   useEffect(() => {
     fetchChatManager().then(setManager).catch(() => {});
-    if (messages.length === 0) {
-      fetchChatMessages().then(setMessages).catch(() => {});
-    }
+    fetchChatMessages().then(fresh => {
+      // Перезаписываем только если бэк отдал что-то осмысленное —
+      // защита от моментов когда сервер вернул [], а у нас локально
+      // есть optimistic-добавленные сообщения, ещё не доехавшие до БД.
+      setMessages(prev => fresh.length >= prev.length ? fresh : prev);
+    }).catch(() => {});
+  }, []); // eslint-disable-line
+
+  // Поллинг каждые 5 сек пока экран открыт — подхватываем ответы
+  // менеджера, которые приходят через CheckUp → inbound-reply.
+  // Realtime-канал (WS) у нас только для typing/presence, так что
+  // новые сообщения от менеджера приходят только через poll.
+  useEffect(() => {
+    if (USE_MOCK) return;
+    const t = setInterval(() => {
+      fetchChatMessages().then(fresh => {
+        setMessages(prev => fresh.length >= prev.length ? fresh : prev);
+      }).catch(() => {});
+    }, 5000);
+    return () => clearInterval(t);
   }, []); // eslint-disable-line
 
   useEffect(() => {
