@@ -40,7 +40,7 @@ import {
   setupPushHandlers, registerForPushNotifications, addPushResponseListener,
   sendPushTokenToBackend,
 } from './src/push';
-import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings } from './src/api';
+import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, USE_MOCK } from './src/api';
 import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
 import { OfflineBanner } from './src/components/OfflineBanner';
@@ -246,8 +246,12 @@ function Root({ onLogout }: { onLogout: () => void }) {
   // Настройки автоответов — в App.tsx, чтобы доступ был из MoreScreen
   const [autoReplySettings, setAutoReplySettings] = useState<AutoReplySettings>(DEFAULT_AUTO_REPLY_SETTINGS);
 
-  // Глобальный state чата — для бейджа на табе
-  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
+  // Глобальный state чата — для бейджа на табе.
+  // В проде (USE_MOCK=false) НЕ сеем фейковый диалог: ChatScreen тянет
+  // реальные сообщения с бэка. Раньше тут безусловно стоял MOCK_MESSAGES
+  // (7 шт.) → guard `fresh.length >= prev.length` в ChatScreen никогда не
+  // пускал реальные 1-2 сообщения, чат показывал моки/пустоту навсегда.
+  const [messages, setMessages] = useState<ChatMessage[]>(USE_MOCK ? MOCK_MESSAGES : []);
 
   // Идентификатор отзыва, выбранного из push-deep-link (передадим в ReviewsScreen)
   const [pushSelectedReviewId, setPushSelectedReviewId] = useState<number | null>(null);

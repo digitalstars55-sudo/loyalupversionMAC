@@ -23,6 +23,23 @@ import { subscribe, mockManagerReplyFlow, notifyUserTyping } from '../realtime';
 let ImagePicker: any = null;
 try { ImagePicker = require('expo-image-picker'); } catch {}
 
+// Сервер — источник истины для истории чата. Из локального state
+// сохраняем только то, чего бэк ещё не знает: optimistic-сообщения
+// (временный id < 0, статус sending/failed) и только что отправленные
+// (≤30с назад — relay/БД могли не успеть отдать их в GET /messages/).
+// Заменяет старый guard `fresh.length >= prev.length`, который при
+// непустом стартовом state (моки / stale) навсегда блокировал реальные
+// сообщения, при этом не теряет свежеотправленное сообщение.
+function mergeServerMessages(prev: ChatMessage[], fresh: ChatMessage[]): ChatMessage[] {
+  const freshIds = new Set(fresh.map(m => m.id));
+  const cutoff = Date.now() - 30_000;
+  const keepLocal = prev.filter(m =>
+    !freshIds.has(m.id) &&
+    (m.id < 0 || new Date(m.created_at).getTime() > cutoff)
+  );
+  return [...fresh, ...keepLocal];
+}
+
 // ════════════════════════════════════════════════════════════════════
 // CHAT SCREEN — чат с менеджером ЛоялUP (с pull-to-refresh + attachments)
 // ════════════════════════════════════════════════════════════════════
@@ -49,10 +66,7 @@ export const ChatScreen: React.FC<{
   useEffect(() => {
     fetchChatManager().then(setManager).catch(() => {});
     fetchChatMessages().then(fresh => {
-      // Перезаписываем только если бэк отдал что-то осмысленное —
-      // защита от моментов когда сервер вернул [], а у нас локально
-      // есть optimistic-добавленные сообщения, ещё не доехавшие до БД.
-      setMessages(prev => fresh.length >= prev.length ? fresh : prev);
+      setMessages(prev => mergeServerMessages(prev, fresh));
     }).catch(() => {});
   }, []); // eslint-disable-line
 
@@ -64,7 +78,7 @@ export const ChatScreen: React.FC<{
     if (USE_MOCK) return;
     const t = setInterval(() => {
       fetchChatMessages().then(fresh => {
-        setMessages(prev => fresh.length >= prev.length ? fresh : prev);
+        setMessages(prev => mergeServerMessages(prev, fresh));
       }).catch(() => {});
     }, 5000);
     return () => clearInterval(t);
@@ -125,9 +139,7 @@ export const ChatScreen: React.FC<{
     setRefreshing(true);
     try {
       const fresh = await fetchChatMessages();
-      // Простая стратегия: если на бэке больше сообщений — заменяем целиком,
-      // иначе оставляем локальные (включая optimistic-добавления, которых ещё нет на бэке).
-      if (fresh.length >= messages.length) setMessages(fresh);
+      setMessages(prev => mergeServerMessages(prev, fresh));
     } catch {} finally { setRefreshing(false); }
   };
 
