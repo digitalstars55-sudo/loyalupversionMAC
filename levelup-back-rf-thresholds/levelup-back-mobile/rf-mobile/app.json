@@ -1,0 +1,78 @@
+{
+  "expo": {
+    "name": "ЛоялUP",
+    "slug": "mud-up",
+    "scheme": "mudup",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/06c888dd-4212-4d02-8280-511cdbef7045"
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#A855F7"
+    },
+    "ios": {
+      "bundleIdentifier": "ru.levelup.mudup",
+      "buildNumber": "1",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Прикрепляйте фото к рассылкам и сообщениям менеджеру.",
+        "NSPhotoLibraryUsageDescription": "Выбирайте изображения из галереи для рассылок и чата.",
+        "NSMicrophoneUsageDescription": "Запись голосовых сообщений в чате с менеджером.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "ru.levelup.mudup",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#A855F7"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#A855F7"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Выбирайте изображения для рассылок и чата.",
+          "cameraPermission": "Снимайте фото для рассылок прямо из приложения."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "06c888dd-4212-4d02-8280-511cdbef7045"
+      }
+    },
+    "owner": "levone"
+  }
+}

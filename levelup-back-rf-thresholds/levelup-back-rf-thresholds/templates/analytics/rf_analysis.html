@@ -1,0 +1,267 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}RF-анализ — {{ block.super }}{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Главная</a>
+  &rsaquo; <a href="{% url 'analytics-general' %}">Аналитика</a>
+  &rsaquo; RF-анализ
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="{% static 'analytics/css/rf_analysis.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="rf-wrap">
+
+  <!-- ── Period filter (identical to general stats) ──────── -->
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <span class="pg-title">🎯 RF-Анализ гостей</span>
+      <div class="d-flex flex-wrap gap-1">
+        <a href="?mode={{ active_mode }}&{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill branch-tab {% if not active_branch_ids %}active{% endif %}">Все точки</a>
+        {% for b in branches %}
+        <a href="?mode={{ active_mode }}&branches={{ b.id }}&{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill branch-tab {% if b.id in active_branch_ids %}active{% endif %}">{{ b.name }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      {% for key, label in period_choices %}
+      <a href="?mode={{ active_mode }}{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}&period={{ key }}"
+         class="btn btn-sm btn-outline-secondary rounded-pill period-btn {% if active_period == key %}active{% endif %}">{{ label }}</a>
+      {% endfor %}
+      <span class="text-muted">|</span>
+      <form method="get" class="d-flex align-items-center gap-2">
+        <input type="hidden" name="mode" value="{{ active_mode }}">
+        {% if active_branch_ids %}<input type="hidden" name="branches" value="{% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}">{% endif %}
+        <input type="date" name="start" value="{{ start }}" class="form-control form-control-sm" style="width:135px;">
+        <span class="text-muted fw-bold">—</span>
+        <input type="date" name="end" value="{{ end }}" class="form-control form-control-sm" style="width:135px;">
+        <button type="submit" class="btn btn-sm btn-success px-3">Применить</button>
+      </form>
+    </div>
+  </div>
+  <p style="font-size:12px;color:#6b7280;margin-bottom:16px;">
+    <strong style="color:#374151;">{{ start_display }} — {{ end_display }}</strong>
+    &nbsp;·&nbsp; Обновлено: {{ updated_at }}
+    &nbsp;·&nbsp;
+    <a href="{% url 'analytics-general' %}{% if active_branch_ids %}?branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}" style="color:#1565c0;font-weight:600;">← Общая статистика</a>
+  </p>
+
+  <!-- ── Toolbar ─────────────────────────────────────────── -->
+  <div class="rf-toolbar">
+    <!-- Mode switcher -->
+    <div class="rf-mode-group">
+      <a href="?mode=restaurant{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}&{{ period_qs }}"
+         class="rf-mode-btn {% if active_mode == 'restaurant' %}active{% endif %}">
+        🍽 Кафе
+      </a>
+      <a href="?mode=delivery{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}&{{ period_qs }}"
+         class="rf-mode-btn {% if active_mode == 'delivery' %}active{% endif %}">
+        🛵 Доставка
+      </a>
+    </div>
+
+    <!-- Migration link -->
+    <a href="{% url 'analytics-rf-migration' %}?mode={{ active_mode }}{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}&{{ period_qs }}"
+       style="font-size:12px;color:var(--blue);text-decoration:none;padding:7px 14px;border:1px solid #d0d7de;border-radius:8px;background:#fff;">
+      📊 История миграций
+    </a>
+
+    <!-- Recalculate button -->
+    <button id="btn-recalc" onclick="recalcRF()"
+      style="font-size:12px;font-weight:600;padding:7px 16px;border:1px solid #d0d7de;border-radius:8px;background:#fff;cursor:pointer;color:#374151;transition:all .15s;">
+      🔄 Пересчитать
+    </button>
+    <span id="recalc-status" style="font-size:13px;color:#94a3b8;display:none;"></span>
+
+  </div>
+
+  <!-- ── Thresholds info bar ─────────────────────────────── -->
+  <div class="rf-thresholds-bar"
+       style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;
+              padding:10px 14px;margin-bottom:14px;font-size:12px;color:#374151;
+              display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
+    <span style="font-weight:700;color:#0f172a;">⚙️ Активные пороги ({{ thresholds_scope_label }}):</span>
+    <span style="font-family:monospace;">
+      R3: 0–{{ thresholds.r_fresh_max }} дн.
+      &nbsp;|&nbsp; R2: до {{ thresholds.r_warm_max }}
+      &nbsp;|&nbsp; R1: до {{ thresholds.r_cooling_max }}
+      &nbsp;|&nbsp; R0: &gt;{{ thresholds.r_cooling_max }}
+    </span>
+    <span style="font-family:monospace;">
+      F1: до {{ thresholds.f_rare_max }}
+      &nbsp;|&nbsp; F2: до {{ thresholds.f_moderate_max }}
+      &nbsp;|&nbsp; F3: {{ thresholds.f_moderate_max|add:'1' }}+ виз.
+    </span>
+    <span style="margin-left:auto;color:#64748b;">
+      Источник: <em>{{ thresholds_source_label }}</em>
+      &nbsp;·&nbsp;
+      <a href="{{ thresholds_edit_url }}" style="color:#1565c0;font-weight:600;">⚙ Изменить</a>
+    </span>
+  </div>
+
+  <!-- ── Summary cards ───────────────────────────────────── -->
+  <div class="summary-cards">
+    <div class="sc sc-blue">
+      <div class="sc-label">Оцифровано гостей</div>
+      <div class="sc-value">{% if active_mode == 'delivery' %}{{ rf_delivery.summary.total }}{% else %}{{ rf.summary.total }}{% endif %}</div>
+      <div class="sc-sub">Всего в базе</div>
+    </div>
+    <div class="sc sc-purple">
+      <div class="sc-label">VIP-сегменты F3</div>
+      <div class="sc-value">{% if active_mode == 'delivery' %}{{ rf_delivery.summary.vip_f3 }}{% else %}{{ rf.summary.vip_f3 }}{% endif %}</div>
+      <div class="sc-sub">Частые гости</div>
+    </div>
+    <div class="sc sc-orange">
+      <div class="sc-label">Под угрозой R1</div>
+      <div class="sc-value">{% if active_mode == 'delivery' %}{{ rf_delivery.summary.at_risk }}{% else %}{{ rf.summary.at_risk }}{% endif %}</div>
+      <div class="sc-sub">Начинают остывать</div>
+    </div>
+    <div class="sc sc-red">
+      <div class="sc-label">Потерянные R0</div>
+      <div class="sc-value">{% if active_mode == 'delivery' %}{{ rf_delivery.summary.lost_r0 }}{% else %}{{ rf.summary.lost_r0 }}{% endif %}</div>
+      <div class="sc-sub">Не приходят давно</div>
+    </div>
+  </div>
+
+  <!-- ── Matrix + Detail panel ───────────────────────────── -->
+  <div class="rf-content">
+    <!-- RF Matrix -->
+    <div class="rf-matrix-card">
+      <div class="rf-matrix-header">
+        <span>RF-Матрица сегментов</span>
+        <span class="rf-matrix-header-sub">Нажмите на ячейку для просмотра гостей</span>
+      </div>
+      <div class="rf-matrix-body">
+        <div id="matrix-container"></div>
+      </div>
+    </div>
+
+    <!-- Detail panel -->
+    <div class="rf-detail-panel" id="detail-panel">
+      <div class="rf-detail-header">
+        <div class="rf-detail-title">Детали сегмента</div>
+        <div class="rf-detail-sub">Выберите ячейку матрицы</div>
+      </div>
+      <div id="detail-body">
+        <div class="rf-detail-no-selection">
+          <div class="icon">🎯</div>
+          <div>Кликните на ячейку матрицы,<br>чтобы увидеть детали сегмента</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Guest list (full width) -->
+    <div class="guest-list-card" id="guest-list-card" style="display:none;">
+      <div class="guest-list-header">
+        <div class="guest-list-title" id="guest-list-title">Гости сегмента</div>
+        <div class="guest-list-count" id="guest-list-count">0 гостей</div>
+      </div>
+      <div id="guest-list-body">
+        <div class="empty-state"><div class="icon">👥</div>Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Migration top flows -->
+    <div class="migration-card" style="grid-column: 1 / -1;">
+      <div class="migration-header">
+        <div class="migration-title">Топ миграций между сегментами ({{ start_display }} — {{ end_display }})</div>
+        <a href="{% url 'analytics-rf-migration' %}?mode={{ active_mode }}{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+           class="migration-link">Полная история →</a>
+      </div>
+      {% if active_mode == 'delivery' %}
+        {% if rf_delivery.migrations %}
+        <div class="migration-list">
+          {% for m in rf_delivery.migrations|slice:":12" %}
+          <div class="migration-row">
+            <span class="migration-from">{{ m.from_emoji }} {{ m.from_name }}</span>
+            <span class="migration-arrow">→</span>
+            <span class="migration-to">{{ m.to_emoji }} {{ m.to_name }}</span>
+            <span class="migration-count">{{ m.count }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:24px;"><div>Нет данных о миграциях за выбранный период</div></div>
+        {% endif %}
+      {% else %}
+        {% if rf.migrations %}
+        <div class="migration-list">
+          {% for m in rf.migrations|slice:":12" %}
+          <div class="migration-row">
+            <span class="migration-from">{{ m.from_emoji }} {{ m.from_name }}</span>
+            <span class="migration-arrow">→</span>
+            <span class="migration-to">{{ m.to_emoji }} {{ m.to_name }}</span>
+            <span class="migration-count">{{ m.count }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:24px;"><div>Нет данных о миграциях за выбранный период</div></div>
+        {% endif %}
+      {% endif %}
+    </div>
+
+  </div><!-- /rf-content -->
+</div><!-- /rf-wrap -->
+
+<!-- ── Broadcast modal ──────────────────────────────────────────────── -->
+<div class="modal-overlay" id="broadcast-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-header-title">📨 Рассылка по сегменту</div>
+      <button class="modal-close" onclick="closeBroadcastModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-segment-info" id="modal-segment-info"></div>
+      <div class="modal-hint" id="modal-hint" style="display:none;">
+        <div class="modal-hint-title">💡 Подсказка</div>
+        <div id="modal-hint-text"></div>
+      </div>
+      <textarea class="modal-textarea" id="modal-message"
+        placeholder="Введите текст рассылки или нажмите «Сгенерировать AI»..."
+        maxlength="4096"
+        oninput="updateCharCount()"></textarea>
+      <div class="modal-char-count" id="modal-char-count">0 / 4096</div>
+
+      <!-- Image upload -->
+      <div class="modal-image-drop" id="modal-image-drop"
+           onclick="document.getElementById('modal-image-input').click();">
+        <div class="modal-image-drop-icon">🖼</div>
+        <div class="modal-image-drop-text">Прикрепить изображение</div>
+        <div class="modal-image-drop-hint">Нажмите или перетащите файл (JPG, PNG до 5 МБ)</div>
+      </div>
+      <input type="file" id="modal-image-input" accept="image/jpeg,image/png,image/webp"
+             style="display:none;" onchange="handleImageSelect(this)">
+      <div class="modal-image-preview" id="modal-image-preview">
+        <img id="modal-image-preview-img" src="" alt="Preview">
+        <button class="modal-image-remove" onclick="removeModalImage()" title="Удалить">&times;</button>
+      </div>
+    </div>
+    <div class="modal-status" id="modal-status"></div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-ai" id="btn-ai" onclick="generateAIText()">
+        🤖 Сгенерировать AI
+      </button>
+      <button class="modal-btn modal-btn-send" id="btn-send" onclick="sendBroadcast()">
+        📨 Отправить
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const RF_DATA = {{ rf_json|safe }};
+const RF_DELIVERY_DATA = {{ rf_delivery_json|safe }};
+const ACTIVE_MODE = "{{ active_mode }}";
+const BRANCH_PARAM = "{% if active_branch_ids %}branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}";
+const matrixData = ACTIVE_MODE === 'delivery' ? RF_DELIVERY_DATA : RF_DATA;
+</script>
+<script src="{% static 'analytics/js/rf_analysis.js' %}"></script>
+{% endblock %}

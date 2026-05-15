@@ -1,0 +1,241 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}История миграции — {{ block.super }}{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Главная</a>
+  &rsaquo; <a href="{% url 'analytics-general' %}">Аналитика</a>
+  &rsaquo; <a href="{% url 'analytics-rf' %}">RF-анализ</a>
+  &rsaquo; История миграции
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="{% static 'analytics/css/rf_migration.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="mig-wrap">
+
+  <!-- ── Page header ─────────────────────────────────────── -->
+  <div class="mig-header">
+    <div class="mig-header-left">
+      <div class="mig-header-title">📊 История миграции гостей</div>
+      <div class="mig-header-meta">
+        {% if active_branches %}
+          {% for b in active_branches %}{{ b.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        {% else %}
+          Все торговые точки
+        {% endif %}
+        &nbsp;·&nbsp; Обновлено: {{ updated_at }}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button id="btn-recalc" onclick="recalcRF()"
+        style="font-size:12px;font-weight:600;padding:6px 14px;border:1px solid rgba(255,255,255,.3);border-radius:8px;background:rgba(255,255,255,.1);cursor:pointer;color:#fff;transition:all .15s;">
+        🔄 Пересчитать
+      </button>
+      <a href="{% url 'analytics-rf' %}?mode={{ active_mode }}{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+         class="mig-header-back">← RF-анализ</a>
+    </div>
+    <span id="recalc-status" style="display:none;font-size:11px;color:rgba(255,255,255,.8);width:100%;"></span>
+  </div>
+
+  <!-- ── Filters ─────────────────────────────────────────── -->
+  {% with b_param=active_branch_ids|join:"," s_param=active_segment %}
+  <div class="filters-bar">
+    <!-- Period -->
+    <div class="filter-group">
+      <div class="filter-label">Период</div>
+      <div class="pill-group">
+        {% for val, label in days_choices %}
+        <a href="?days={{ val }}&mode={{ active_mode }}{% if s_param %}&segment={{ s_param }}{% endif %}{% if b_param %}&branches={{ b_param }}{% endif %}"
+           class="pill-btn {% if active_days|stringformat:'s' == val %}active{% endif %}">{{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Mode -->
+    <div class="filter-group">
+      <div class="filter-label">Режим</div>
+      <div class="pill-group">
+        <a href="?mode=restaurant&days={{ active_days }}{% if s_param %}&segment={{ s_param }}{% endif %}{% if b_param %}&branches={{ b_param }}{% endif %}"
+           class="pill-btn {% if active_mode == 'restaurant' %}active{% endif %}">🍽 Кафе</a>
+        <a href="?mode=delivery&days={{ active_days }}{% if s_param %}&segment={{ s_param }}{% endif %}{% if b_param %}&branches={{ b_param }}{% endif %}"
+           class="pill-btn {% if active_mode == 'delivery' %}active{% endif %}">🛵 Доставка</a>
+      </div>
+    </div>
+
+    <!-- Segment filter -->
+    <div class="filter-group">
+      <div class="filter-label">Сегмент</div>
+      <select class="filter-select" onchange="window.location='?mode={{ active_mode }}&days={{ active_days }}{% if b_param %}&branches={{ b_param }}{% endif %}&segment='+this.value">
+        <option value="">Все сегменты</option>
+        {% for seg in all_segments %}
+        <option value="{{ seg.code }}" {% if active_segment == seg.code %}selected{% endif %}>
+          {{ seg.emoji }} {{ seg.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Branch filter -->
+    <div class="filter-group">
+      <div class="filter-label">Точки</div>
+      <div class="branch-chips">
+        <a href="?mode={{ active_mode }}&days={{ active_days }}{% if s_param %}&segment={{ s_param }}{% endif %}"
+           class="branch-chip {% if not active_branch_ids %}active{% endif %}">Все</a>
+        {% for b in branches %}
+        <a href="?mode={{ active_mode }}&days={{ active_days }}{% if s_param %}&segment={{ s_param }}{% endif %}&branches={{ b.id }}"
+           class="branch-chip {% if b.id in active_branch_ids %}active{% endif %}">{{ b.name }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+
+  <!-- ── Effectiveness KPIs ──────────────────────────────── -->
+  <div class="eff-section">
+    <div class="section-title">⚡ Эффективность за период</div>
+    <div class="eff-cards">
+      <div class="ec ec-green">
+        <div class="ec-icon">📈</div>
+        <div class="ec-label">Рост лояльности</div>
+        <div class="ec-value">{{ effectiveness.growth }}</div>
+        <div class="ec-sub">Гостей перешли в более<br>активный сегмент</div>
+      </div>
+      <div class="ec ec-orange">
+        <div class="ec-icon">📉</div>
+        <div class="ec-label">Остывание</div>
+        <div class="ec-value">{{ effectiveness.cooling }}</div>
+        <div class="ec-sub">Гостей стали посещать<br>реже или позже</div>
+      </div>
+      <div class="ec ec-red">
+        <div class="ec-icon">🚨</div>
+        <div class="ec-label">Отток в R0</div>
+        <div class="ec-value">{{ effectiveness.lost_to_r0 }}</div>
+        <div class="ec-sub">Гостей попали в<br>«потерянный» сегмент</div>
+      </div>
+      <div class="ec ec-blue">
+        <div class="ec-icon">🔄</div>
+        <div class="ec-label">Реактивация</div>
+        <div class="ec-value">{{ effectiveness.reactivated }}</div>
+        <div class="ec-sub">Гостей вернулись<br>из R0 в активный</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sankey flow chart ───────────────────────────────── -->
+  {% if flows %}
+  <div class="sankey-card">
+    <div class="sankey-header">
+      <div class="sankey-title">🔀 Граф потоков миграции</div>
+      <div class="sankey-sub">Ширина потока пропорциональна числу гостей</div>
+    </div>
+    <div class="sankey-body">
+      <svg id="flow-svg"></svg>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Migration flows ─────────────────────────────────── -->
+  <div class="flows-section">
+    <div class="section-title">
+      🔀 Потоки перемещения клиентов
+      {% if active_segment %}· фильтр: {{ active_segment }}{% endif %}
+    </div>
+
+    {% if flows %}
+    <!-- Cards view for top flows -->
+    <div class="flows-grid" style="margin-bottom:20px;">
+      {% for f in flows|slice:":6" %}
+      <div class="flow-card">
+        <div class="flow-from" style="background:{{ f.from_color }}22; border:1.5px solid {{ f.from_color }}44;">
+          <div class="flow-segment-emoji">{{ f.from_emoji }}</div>
+          <div class="flow-segment-name">{{ f.from_name }}</div>
+          <div class="flow-segment-code">{{ f.from_code }}</div>
+        </div>
+        <div class="flow-arrow-block">
+          <div class="flow-arrow">→</div>
+          <div class="flow-count-badge">{{ f.count }}</div>
+        </div>
+        <div class="flow-to" style="background:{{ f.to_color }}22; border:1.5px solid {{ f.to_color }}44;">
+          <div class="flow-segment-emoji">{{ f.to_emoji }}</div>
+          <div class="flow-segment-name">{{ f.to_name }}</div>
+          <div class="flow-segment-code">{{ f.to_code }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Full table for all flows -->
+    {% if flows|length > 1 %}
+    <div class="flows-table-card">
+      <div class="flows-table-header">
+        <div class="flows-table-title">Все потоки</div>
+        <div class="flows-table-count">{{ flows|length }} переходов</div>
+      </div>
+      <table class="flow-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Из сегмента</th>
+            <th></th>
+            <th>В сегмент</th>
+            <th>Гостей</th>
+            <th>График</th>
+          </tr>
+        </thead>
+        <tbody id="flows-tbody">
+          {% with max_count=flows.0.count %}
+          {% for f in flows %}
+          <tr>
+            <td style="color:#94a3b8;font-size:11px;width:30px;">{{ forloop.counter }}</td>
+            <td>
+              <span class="seg-pill" style="background:{{ f.from_color }};">{{ f.from_emoji }} {{ f.from_name }}</span>
+            </td>
+            <td style="color:#cbd5e1;font-size:16px;text-align:center;width:30px;">→</td>
+            <td>
+              <span class="seg-pill" style="background:{{ f.to_color }};">{{ f.to_emoji }} {{ f.to_name }}</span>
+            </td>
+            <td><span class="count-num">{{ f.count }}</span></td>
+            <td style="min-width:100px;">
+              <div class="flow-bar-wrap">
+                <div class="flow-bar" style="width:{% widthratio f.count max_count 100 %}%; background:{{ f.from_color }};"></div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% endwith %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+      <div class="icon">🔀</div>
+      <div style="font-weight:600;margin-bottom:6px;">Нет данных о миграциях</div>
+      <div>
+        {% if active_segment %}
+          Нет переходов для сегмента «{{ active_segment }}» за выбранный период.
+          <a href="?mode={{ active_mode }}&days={{ active_days }}" style="color:var(--blue);">Сбросить фильтр</a>
+        {% else %}
+          Миграции появятся после первого пересчёта RF-метрик.<br>
+          Запустите Celery-задачу <code>recalculate_rf_scores</code>.
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div><!-- /mig-wrap -->
+
+<script>
+const FLOWS = {{ flows_json|safe }};
+const ACTIVE_MODE = "{{ active_mode }}";
+const BRANCH_IDS = "{% if active_branch_ids %}{% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}";
+</script>
+<script src="{% static 'analytics/js/rf_migration.js' %}"></script>
+{% endblock %}

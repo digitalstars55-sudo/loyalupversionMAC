@@ -1,0 +1,54 @@
+# ── OS ────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ── Node / Expo / RN ──────────────────────────────────────────────────────
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.tgz
+
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Env / secrets (но .env.example остаётся в репо) ──────────────────────
+.env
+.env.local
+.env.production
+.env.production.local
+.env.*.local
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# ── IDE ───────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+
+# ── Builds / artifacts ────────────────────────────────────────────────────
+*.log
+build/
+android/build/
+android/.gradle/
+ios/build/
+ios/Pods/
+
+# ── EAS / native ──────────────────────────────────────────────────────────
+*.apk
+*.ipa
+*.aab
+
+# ── Local Claude / agent state ────────────────────────────────────────────
+.claude/

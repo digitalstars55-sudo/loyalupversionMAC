@@ -1,0 +1,6 @@
+- [🚨 Release progress (TestFlight)](loyalup_release_progress.md) — ТЕКУЩИЙ ШАГ: застряли на Apple 2FA SMS блокировке, все creds готовы, ждём разблок
+- [Mobile state & roadmap](mud_up_mobile_state.md) — что сделано (Фазы A/B/C/F1-F5), что в заглушках, что нужно для прода
+- [Design decisions](mud_up_design_decisions.md) — 10 нетривиальных UX-выборов и почему — не откатывать без обсуждения
+- [Backend contract](mud_up_backend_contract.md) — эндпоинты которые ждёт мобайл; что есть в вебе и что нужно создать
+- [Dev setup notes](mud_up_dev_setup.md) — Metro-зомби, правильная процедура рестарта, текущий порт 8101
+- [User collab style](user_collab_style.md) — как юзер работает: краткие «да=делай», просит честность, защищает фирстайл, требует визуальный чек
