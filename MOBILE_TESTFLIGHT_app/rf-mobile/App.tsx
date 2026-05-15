@@ -240,8 +240,12 @@ function Root({ onLogout }: { onLogout: () => void }) {
   // Default tab: home — дашборд с задачами дня
   const [tab, setTab] = useState<TabKey>('home');
 
-  // Глобальный state отзывов — чтобы badge на табе был синхронизирован с экраном
-  const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
+  // Глобальный state отзывов — чтобы badge на табе был синхронизирован с экраном.
+  // В проде (USE_MOCK=false) НЕ сеем фейковые отзывы: иначе guard
+  // `reviews.length === 0` в ReviewsScreen никогда не пускает реальную
+  // загрузку, и тестеры залипают на MOCK_REVIEWS (тот же класс бага, что
+  // был в чате с MOCK_MESSAGES).
+  const [reviews, setReviews] = useState<Review[]>(USE_MOCK ? MOCK_REVIEWS : []);
 
   // Настройки автоответов — в App.tsx, чтобы доступ был из MoreScreen
   const [autoReplySettings, setAutoReplySettings] = useState<AutoReplySettings>(DEFAULT_AUTO_REPLY_SETTINGS);
@@ -296,15 +300,21 @@ function Root({ onLogout }: { onLogout: () => void }) {
 
   // ── Загружаем реальные отзывы один раз при старте Root, чтобы badge на табе
   //    показывал реальное число, а не значение из MOCK_REVIEWS.
+  // Грузим реальные отзывы/настройки ТОЛЬКО после готовности авторизации:
+  // bootstrap восстановил токен+tenant_domain (setApiBase), либо прошёл
+  // логин. Эффект перезапускается при изменении token → свежий логин тоже
+  // подтянет реальные данные. Раньше deps были [] и fetch гонялся с
+  // async-bootstrap → уходил без авторизации на public-домен → падал →
+  // reviews навсегда оставались MOCK_REVIEWS (ретрая не было).
   useEffect(() => {
+    if (bootstrapping || !token) return;
     fetchReviews({}).then(list => {
-      if (list && list.length >= 0) setReviews(list);
+      if (list) setReviews(list);
     }).catch(() => {});
-    // Подтягиваем реальные настройки автоответа с бэка (не дефолты).
     fetchAutoReplySettings().then(s => {
       if (s) setAutoReplySettings(s);
     }).catch(() => {});
-  }, []);
+  }, [bootstrapping, token]);
 
   // ── Push: установка handler'ов + регистрация + слушатель тапа ──
   useEffect(() => {

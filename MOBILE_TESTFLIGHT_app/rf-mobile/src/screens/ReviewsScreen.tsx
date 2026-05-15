@@ -69,7 +69,7 @@ export const ReviewsScreen: React.FC<{
   const [filterOpen, setFilterOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(reviews.length === 0);
+  const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Review | null>(null);
   const [periodDays, setPeriodDays] = useState<number | 'all'>('all');
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
@@ -93,8 +93,12 @@ export const ReviewsScreen: React.FC<{
     }
   }, [setReviews, periodDays]);
 
+  // Всегда тянем реальные отзывы при открытии экрана. Раньше guard
+  // `if (reviews.length === 0)` блокировал загрузку, т.к. App.tsx сеял
+  // MOCK_REVIEWS (непустой) → экран залипал на фейке (тот же баг, что
+  // был с чатом). Экран открывается уже после логина → авторизация ОК.
   useEffect(() => {
-    if (reviews.length === 0) load();
+    load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Перезагрузка при смене периода
