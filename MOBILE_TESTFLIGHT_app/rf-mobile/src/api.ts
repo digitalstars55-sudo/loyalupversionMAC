@@ -40,7 +40,15 @@ function _envBool(key: string, fallback: boolean): boolean {
   return String(raw).toLowerCase() === 'true' || raw === '1';
 }
 
-export const USE_MOCK = _envBool('EXPO_PUBLIC_USE_MOCK', false);
+// Мок-режим разрешён ТОЛЬКО в dev-сборке (локальное demo). В релизе/OTA
+// (__DEV__ === false) USE_MOCK всегда false — это боевое приложение владельцев,
+// мок-данные не должны протекать к реальным пользователям.
+export const USE_MOCK =
+  (typeof __DEV__ !== 'undefined' && __DEV__) && _envBool('EXPO_PUBLIC_USE_MOCK', false);
+
+// Префикс фейкового токена, который выдаёт мок-логин. Используется в bootstrap
+// чтобы выбросить залежавшуюся мок-сессию после переключения на реальный режим.
+export const MOCK_TOKEN_PREFIX = 'mock_jwt_';
 
 // API_BASE — изначально читается из env. После логина мобайл может его
 // переключить на tenant_domain через setApiBase(); тогда все последующие

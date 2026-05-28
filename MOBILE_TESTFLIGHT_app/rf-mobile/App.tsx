@@ -40,7 +40,7 @@ import {
   setupPushHandlers, registerForPushNotifications, addPushResponseListener,
   sendPushTokenToBackend,
 } from './src/push';
-import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, USE_MOCK } from './src/api';
+import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
 import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
 import { OfflineBanner } from './src/components/OfflineBanner';
@@ -124,6 +124,16 @@ function AuthGate() {
     (async () => {
       try {
         const saved = await storage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+        // Выбрасываем залежавшуюся мок-сессию (фейковый токен из прежней
+        // demo-сборки с USE_MOCK=true): иначе профиль/данные выглядят «мок»,
+        // а реальные запросы уходят с невалидным токеном → 401. Пользователь
+        // попадёт на экран логина и войдёт реальными кредами.
+        if (saved && saved.startsWith(MOCK_TOKEN_PREFIX)) {
+          await storage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+          await storage.removeItem(STORAGE_KEYS.PROFILE);
+          await storage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+          return;
+        }
         const savedProfile = await storage.getItem(STORAGE_KEYS.PROFILE);
         if (saved) {
           setAuthToken(saved);
