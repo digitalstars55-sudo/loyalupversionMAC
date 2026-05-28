@@ -279,10 +279,7 @@ function Root({ onLogout }: { onLogout: () => void }) {
   // Бейдж = только негативные отзывы без ответа (то что реально требует реакции).
   // Совпадает с pendingCount в ReviewsScreen.
   const reviewsBadge = useMemo(
-    () => reviews.filter(rev =>
-      !rev.is_replied &&
-      rev.sentiment === 'NEGATIVE'
-    ).length,
+    () => reviews.filter(rev => rev.sentiment === 'NEGATIVE').length,
     [reviews],
   );
   const chatBadge = useMemo(

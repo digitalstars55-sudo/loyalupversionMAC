@@ -72,10 +72,7 @@ export const HomeScreen: React.FC<{
 
   // ── Считаем задачи дня ──
   const negPending = useMemo(
-    () => reviews.filter(rev =>
-      rev.sentiment === 'NEGATIVE' &&
-      !rev.is_replied
-    ),
+    () => reviews.filter(rev => rev.sentiment === 'NEGATIVE'),
     [reviews]
   );
   const draftsReady = useMemo(
@@ -198,7 +195,7 @@ export const HomeScreen: React.FC<{
               icon={<AlertCircle size={18} color={C.warn} strokeWidth={2.2} />}
               iconBg={C.warnSoft}
               title="Ответить на негатив"
-              sub={`${negPending.length} ${plural(negPending.length, ['отзыв ждёт', 'отзыва ждут', 'отзывов ждут'])}`}
+              sub={`${negPending.length} ${plural(negPending.length, ['негативный отзыв', 'негативных отзыва', 'негативных отзывов'])} за 30 дней`}
               badge={String(negPending.length)} badgeBg={C.warn} badgeColor={C.surface}
               onPress={() => {
                 haptic('medium');
