@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, Pressable, Modal, ScrollView, Platform, Keyboard,
-  TextInput, Alert, ActivityIndicator, FlatList, Dimensions, Animated,
+  View, Text, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform,
+  TextInput, Alert, ActivityIndicator, FlatList, Dimensions,
 } from 'react-native';
 
 const SCREEN_H = Dimensions.get('window').height;
@@ -40,32 +40,6 @@ export const ReviewDetailModal: React.FC<{
   const [regenerating, setRegenerating] = useState(false);
   const [draftRejected, setDraftRejected] = useState(false);
   const listRef = useRef<FlatList<TestimonialMessage>>(null);
-  const kbOffset = useRef(new Animated.Value(0)).current;
-
-  // Синхронная анимация с клавиатурой iOS — sheet сжимается через paddingBottom,
-  // клавиатура не налезает на контент.
-  useEffect(() => {
-    if (!visible) { kbOffset.setValue(0); return; }
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const onShow = Keyboard.addListener(showEvt, (e) => {
-      Animated.timing(kbOffset, {
-        toValue: e.endCoordinates.height,
-        duration: Platform.OS === 'ios' ? e.duration : 200,
-        useNativeDriver: false,
-      }).start(() => {
-        setTimeout(() => { try { listRef.current?.scrollToEnd({ animated: false }); } catch {} }, 30);
-      });
-    });
-    const onHide = Keyboard.addListener(hideEvt, (e) => {
-      Animated.timing(kbOffset, {
-        toValue: 0,
-        duration: Platform.OS === 'ios' ? e.duration : 200,
-        useNativeDriver: false,
-      }).start();
-    });
-    return () => { onShow.remove(); onHide.remove(); };
-  }, [visible]);
 
   // Загружаем thread при открытии
   useEffect(() => {
@@ -218,9 +192,12 @@ export const ReviewDetailModal: React.FC<{
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.modalRoot}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'height' : 'height'}
+        style={s.modalRoot}
+      >
         <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <Animated.View style={[s.modalSheet, { maxHeight: SCREEN_H * 0.92, flex: 1, paddingBottom: kbOffset }]}>
+        <View style={[s.modalSheet, { maxHeight: SCREEN_H * 0.92, flex: 1 }]}>
           <View style={s.modalHandle} />
 
           {/* Header */}
@@ -393,8 +370,8 @@ export const ReviewDetailModal: React.FC<{
               );
             })()}
           </View>
-        </Animated.View>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
