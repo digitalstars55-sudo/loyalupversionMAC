@@ -383,7 +383,7 @@ export const HomeScreen: React.FC<{
           <Text style={s.secMeta}>лента событий</Text>
         </View>
         <View style={s.feedCard}>
-          {buildActivityFeed(reviews, messages).map((item, i, arr) => (
+          {buildActivityFeed(reviews, messages, onOpenReview, onNavigate).map((item, i, arr) => (
             <Pressable
               key={item.id}
               style={[s.feedRow, i === arr.length - 1 && s.feedRowLast]}
@@ -522,7 +522,12 @@ interface FeedItem {
   onPress: () => void;
 }
 
-function buildActivityFeed(reviews: Review[], messages: ChatMessage[]): FeedItem[] {
+function buildActivityFeed(
+  reviews: Review[],
+  messages: ChatMessage[],
+  onOpenReview?: (id: number) => void,
+  onNavigate?: (tab: TabKey) => void,
+): FeedItem[] {
   const items: { ts: number; item: FeedItem }[] = [];
 
   reviews.slice(0, 6).forEach(rev => {
@@ -535,7 +540,7 @@ function buildActivityFeed(reviews: Review[], messages: ChatMessage[]): FeedItem
         title: rev.customer_name,
         sub: rev.text,
         time: relativeTime(rev.last_message_at),
-        onPress: () => {},
+        onPress: () => { haptic('light'); onOpenReview?.(rev.id); },
       },
     });
   });
@@ -551,7 +556,7 @@ function buildActivityFeed(reviews: Review[], messages: ChatMessage[]): FeedItem
         title: 'Менеджер',
         sub: m.text,
         time: relativeTime(m.created_at),
-        onPress: () => {},
+        onPress: () => { haptic('light'); onNavigate?.('chat'); },
       },
     });
   });

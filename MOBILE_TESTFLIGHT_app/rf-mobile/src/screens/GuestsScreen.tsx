@@ -11,7 +11,6 @@ import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { fmtNum, avatarColor, initials } from '../helpers';
 import { fetchGuests } from '../api';
-import { MOCK_GUESTS } from '../mocks';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
 import { GuestDetailScreen } from './GuestDetailScreen';
@@ -23,7 +22,7 @@ import type { S } from '../styles';
 // ════════════════════════════════════════════════════════════════════
 type RFilter = 'all' | 'fresh' | 'warm' | 'cold' | 'lost';
 
-export const GuestsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: string | null }> = ({ onBack, initialGuestVkId }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
 
@@ -32,15 +31,13 @@ export const GuestsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [rFilter, setRFilter] = useState<RFilter>('all');
-  const [activeVkId, setActiveVkId] = useState<string | null>(null);
+  const [activeVkId, setActiveVkId] = useState<string | null>(initialGuestVkId ?? null);
 
   const load = async () => {
     try {
-      // На бэке — отдельный endpoint /api/v1/guests/. Сейчас mock через fetchGuests с дефолтным сегментом.
       const list = await fetchGuests({ mode: 'restaurant', r_score: 2, f_score: 2, branch_ids: [] });
-      // Если mock вернул мало — расширим из MOCK_GUESTS
-      setItems(list.length > 4 ? list : MOCK_GUESTS);
-    } catch { setItems(MOCK_GUESTS); }
+      setItems(list);
+    } catch { setItems([]); }
     finally { setLoading(false); setRefreshing(false); }
   };
 

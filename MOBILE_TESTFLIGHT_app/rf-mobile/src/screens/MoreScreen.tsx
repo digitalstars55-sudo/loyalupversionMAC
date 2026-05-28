@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -62,11 +62,17 @@ export const MoreScreen: React.FC<{
   onOpenChat: () => void;
   reviews: Review[];
   onLogout?: () => void;
-}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout }) => {
+  openGuestVkId?: string | null;
+  onGuestVkIdConsumed?: () => void;
+}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout, openGuestVkId, onGuestVkIdConsumed }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
-  const [sub, setSub] = useState<SubScreen>(null);
+  const [sub, setSub] = useState<SubScreen>(openGuestVkId ? 'guests' : null);
   const [offline, setOffline] = useState<boolean>(isForceOffline());
+
+  useEffect(() => {
+    if (openGuestVkId) onGuestVkIdConsumed?.();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (sub === 'auto-reply') {
     return (
@@ -88,7 +94,7 @@ export const MoreScreen: React.FC<{
   }
 
   if (sub === 'campaigns')     return <CampaignsScreen     onBack={() => setSub(null)} />;
-  if (sub === 'guests')        return <GuestsScreen        onBack={() => setSub(null)} />;
+  if (sub === 'guests')        return <GuestsScreen        onBack={() => setSub(null)} initialGuestVkId={openGuestVkId} />;
   if (sub === 'branches')      return (
     <BranchesScreen
       onBack={() => setSub(null)}

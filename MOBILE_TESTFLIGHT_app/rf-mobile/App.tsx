@@ -270,6 +270,9 @@ function Root({ onLogout }: { onLogout: () => void }) {
   // Идентификатор отзыва, выбранного из push-deep-link (передадим в ReviewsScreen)
   const [pushSelectedReviewId, setPushSelectedReviewId] = useState<number | null>(null);
 
+  // Deep-link к конкретному гостю (из поиска) — передадим в MoreScreen → GuestsScreen
+  const [pendingGuestVkId, setPendingGuestVkId] = useState<string | null>(null);
+
   // Preset фильтра отзывов — когда переходим из Home по карточке (негатив/позитив/драфты)
   const [reviewsPreset, setReviewsPreset] = useState<'urgent' | 'unanswered' | 'replied' | 'drafts' | 'positive' | null>(null);
 
@@ -390,7 +393,7 @@ function Root({ onLogout }: { onLogout: () => void }) {
         <SearchScreen
           onBack={() => setOverlay(null)}
           onOpenReview={(id) => { setOverlay(null); setTab('reviews'); setPushSelectedReviewId(id); }}
-          onOpenGuest={(_vkId) => { setOverlay(null); setTab('more'); /* MoreScreen → Гости откроет нужного */ }}
+          onOpenGuest={(vkId) => { setOverlay(null); setPendingGuestVkId(vkId); setTab('more'); }}
           onOpenCatalog={() => { setOverlay(null); setTab('more'); }}
           onOpenQuests={() => { setOverlay(null); setTab('more'); }}
           onOpenPromotions={() => { setOverlay(null); setTab('more'); }}
@@ -404,7 +407,7 @@ function Root({ onLogout }: { onLogout: () => void }) {
       <View style={{ flex: 1 }}>
         <BirthdaysScreen
           onBack={() => setOverlay(null)}
-          onOpenGuest={(_vkId) => { setOverlay(null); setTab('more'); }}
+          onOpenGuest={(vkId) => { setOverlay(null); setPendingGuestVkId(vkId); setTab('more'); }}
         />
         <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
       </View>
@@ -461,6 +464,8 @@ function Root({ onLogout }: { onLogout: () => void }) {
           onOpenChat={() => setTab('chat')}
           reviews={reviews}
           onLogout={onLogout}
+          openGuestVkId={pendingGuestVkId}
+          onGuestVkIdConsumed={() => setPendingGuestVkId(null)}
         />
       )}
 
