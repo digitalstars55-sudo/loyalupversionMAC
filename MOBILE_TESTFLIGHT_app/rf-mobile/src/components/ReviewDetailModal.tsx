@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform,
-  TextInput, Alert, ActivityIndicator, FlatList,
+  TextInput, Alert, ActivityIndicator, FlatList, Dimensions,
 } from 'react-native';
+
+const SCREEN_H = Dimensions.get('window').height;
 import {
   X as XIcon, Send, Sparkles, Check, RefreshCw, Archive, AlertTriangle,
   Phone as PhoneIcon, Hash, Eye,
@@ -195,7 +197,7 @@ export const ReviewDetailModal: React.FC<{
         style={s.modalRoot}
       >
         <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, { minHeight: '92%', maxHeight: '92%', flex: 1 }]}>
+        <View style={[s.modalSheet, { maxHeight: SCREEN_H * 0.92, flex: 1 }]}>
           <View style={s.modalHandle} />
 
           {/* Header */}
