@@ -1,18 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, FlatList, RefreshControl, StyleSheet } from 'react-native';
+import {
+  View, Text, Pressable, FlatList, RefreshControl, StyleSheet,
+  Modal, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Megaphone, CheckCircle2, AlertTriangle, Clock, TestTube2, Trophy } from 'lucide-react-native';
+import {
+  ChevronLeft, Megaphone, CheckCircle2, AlertTriangle, Clock, TestTube2, Trophy,
+  Plus, X, Sparkles, Send,
+} from 'lucide-react-native';
 
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { fmtNum, relativeTime } from '../helpers';
-import { fetchCampaigns } from '../api';
+import { fetchCampaigns, generateBroadcastText, sendBroadcast, fetchBranches } from '../api';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
-import type { Campaign, CampaignStatus, CampaignVariant, GenderFilter } from '../types';
-import { Info } from 'lucide-react-native';
+import type { Campaign, CampaignStatus, CampaignVariant, GenderFilter, RFBranch } from '../types';
 import type { S } from '../styles';
 
 // ════════════════════════════════════════════════════════════════════
@@ -28,6 +33,52 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
+
+  // ── Создание рассылки ─────────────────────────────────────────────
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createText, setCreateText] = useState('');
+  const [createDraft, setCreateDraft] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [branches, setBranches] = useState<RFBranch[]>([]);
+
+  const openCreate = () => {
+    haptic('light');
+    setCreateText('');
+    setCreateDraft('');
+    setCreateOpen(true);
+    fetchBranches().then(list => setBranches(list.filter(b => b.id !== 0))).catch(() => {});
+  };
+
+  const onAiGenerate = async () => {
+    haptic('light');
+    setAiLoading(true);
+    try {
+      const t = await generateBroadcastText({ draft: createDraft.trim() || undefined });
+      setCreateText(t);
+      haptic('success');
+    } catch (e: any) {
+      haptic('error');
+      Alert.alert('Ошибка', e?.message ?? 'Не удалось сгенерировать текст');
+    } finally { setAiLoading(false); }
+  };
+
+  const onSend = async () => {
+    if (!createText.trim()) { Alert.alert('Текст пустой', 'Введите или сгенерируйте текст рассылки.'); return; }
+    haptic('medium');
+    setSending(true);
+    try {
+      const branchIds = branches.map(b => b.id);
+      const res = await sendBroadcast({ message_text: createText.trim(), mode: 'restaurant', branch_ids: branchIds });
+      haptic('success');
+      Alert.alert('Рассылка запущена', `Отправлено: ${res.total_sent} получателей.`);
+      setCreateOpen(false);
+      load();
+    } catch (e: any) {
+      haptic('error');
+      Alert.alert('Ошибка', e?.message ?? 'Не удалось отправить рассылку');
+    } finally { setSending(false); }
+  };
 
   const load = async () => {
     try { setItems(await fetchCampaigns()); }
@@ -77,17 +128,6 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         ListHeaderComponent={
           <View>
-            {/* Пояснение */}
-            <View style={[s.modalHint, { marginHorizontal: 0, marginBottom: 14 }]}>
-              <View style={s.modalHintHeader}>
-                <Info size={12} color={C.hintInk} strokeWidth={2.4} />
-                <Text style={s.modalHintTitle}>История рассылок</Text>
-              </View>
-              <Text style={s.modalHintText}>
-                Здесь отображается история отправленных рассылок. Чтобы создать новую — перейдите во вкладку «Аналитика», выберите RF-сегмент и нажмите «Рассылка».
-              </Text>
-            </View>
-
             {/* Summary */}
             {!loading && items.length > 0 && (
               <View style={[s.tasksCard, { marginHorizontal: 0, marginBottom: 14 }]}>
@@ -151,6 +191,89 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
         }
         renderItem={({ item }) => <CampaignCard c={item} s={s} />}
       />
+
+      {/* FAB — создать рассылку */}
+      <Pressable style={camp.fab} {...ripple('rgba(255,255,255,0.22)', true)} onPress={openCreate}>
+        <Plus size={22} color={C.surface} strokeWidth={2.5} />
+        <Text style={camp.fabText}>Новая рассылка</Text>
+      </Pressable>
+
+      {/* Модал создания рассылки */}
+      <Modal visible={createOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCreateOpen(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: C.surface }} edges={['top']}>
+            {/* Header */}
+            <View style={camp.modalHeader}>
+              <Text style={camp.modalTitle}>Новая рассылка</Text>
+              <Pressable {...ripple()} onPress={() => setCreateOpen(false)} style={camp.modalClose}>
+                <X size={20} color={C.ink2} strokeWidth={2.2} />
+              </Pressable>
+            </View>
+
+            <View style={{ flex: 1, padding: 16, gap: 14 }}>
+              {/* Подсказка для AI */}
+              <View>
+                <Text style={camp.fieldLabel}>Подсказка для AI (необязательно)</Text>
+                <TextInput
+                  style={camp.input}
+                  value={createDraft}
+                  onChangeText={setCreateDraft}
+                  placeholder="Например: скидка 20% в выходные..."
+                  placeholderTextColor={C.ink4}
+                  multiline
+                  numberOfLines={2}
+                  editable={!aiLoading && !sending}
+                />
+              </View>
+
+              {/* Кнопка AI генерации */}
+              <Pressable
+                style={[camp.aiBtn, (aiLoading || sending) && { opacity: 0.5 }]}
+                {...ripple('rgba(255,255,255,0.22)')}
+                onPress={onAiGenerate}
+                disabled={aiLoading || sending}
+              >
+                {aiLoading
+                  ? <ActivityIndicator size="small" color={C.surface} />
+                  : <Sparkles size={15} color={C.surface} strokeWidth={2.2} />
+                }
+                <Text style={camp.aiBtnText}>{aiLoading ? 'Генерирую...' : 'Сгенерировать текст AI'}</Text>
+              </Pressable>
+
+              {/* Текст рассылки */}
+              <View style={{ flex: 1 }}>
+                <Text style={camp.fieldLabel}>Текст рассылки</Text>
+                <TextInput
+                  style={[camp.input, { flex: 1, textAlignVertical: 'top' }]}
+                  value={createText}
+                  onChangeText={setCreateText}
+                  placeholder="Введите текст или используйте AI выше..."
+                  placeholderTextColor={C.ink4}
+                  multiline
+                  editable={!sending}
+                />
+                <Text style={camp.charCount}>{createText.length} / 4096</Text>
+              </View>
+            </View>
+
+            {/* Кнопка отправки */}
+            <View style={{ padding: 16 }}>
+              <Pressable
+                style={[s.btn, s.btnPrimary, (sending || !createText.trim()) && { opacity: 0.5 }]}
+                {...ripple('rgba(255,255,255,0.22)')}
+                onPress={onSend}
+                disabled={sending || !createText.trim()}
+              >
+                {sending
+                  ? <ActivityIndicator size="small" color={C.surface} />
+                  : <Send size={15} color={C.surface} strokeWidth={2.2} />
+                }
+                <Text style={s.btnPrimaryText}>{sending ? 'Отправляем...' : 'Отправить всем гостям'}</Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -378,5 +501,88 @@ const ab = StyleSheet.create({
     fontFamily: 'Manrope_700Bold',
     fontSize: 10,
     letterSpacing: 0.3,
+  },
+});
+
+const camp = StyleSheet.create({
+  fab: {
+    position: 'absolute',
+    bottom: 100,
+    right: 20,
+    backgroundColor: C.purple,
+    borderRadius: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    gap: 8,
+    shadowColor: C.purple,
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  fabText: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 14,
+    color: C.surface,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.line,
+  },
+  modalTitle: {
+    flex: 1,
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 17,
+    color: C.ink,
+  },
+  modalClose: {
+    padding: 6,
+  },
+  fieldLabel: {
+    fontFamily: 'Manrope_600SemiBold',
+    fontSize: 12,
+    color: C.ink3,
+    marginBottom: 6,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  input: {
+    backgroundColor: C.paper,
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontFamily: 'Manrope_400Regular',
+    fontSize: 14,
+    color: C.ink,
+    minHeight: 48,
+  },
+  aiBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: C.purpleDeep,
+    borderRadius: 12,
+    paddingVertical: 13,
+  },
+  aiBtnText: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 14,
+    color: C.surface,
+  },
+  charCount: {
+    fontFamily: 'Manrope_400Regular',
+    fontSize: 11,
+    color: C.ink4,
+    textAlign: 'right',
+    marginTop: 4,
   },
 });

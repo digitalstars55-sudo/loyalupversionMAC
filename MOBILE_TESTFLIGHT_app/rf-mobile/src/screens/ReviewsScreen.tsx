@@ -71,7 +71,7 @@ export const ReviewsScreen: React.FC<{
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Review | null>(null);
-  const [periodDays, setPeriodDays] = useState<number | 'all'>('all');
+  const [periodDays, setPeriodDays] = useState<number | 'all'>(30);
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
   const [branchId, setBranchId] = useState<number | 'all'>('all');

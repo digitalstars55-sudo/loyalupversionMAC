@@ -599,7 +599,7 @@ export async function fetchGuests(p: { mode: Mode; r_score: number; f_score: num
   return result.data;
 }
 
-export async function generateBroadcastText(p: { segment_id: number }): Promise<string> {
+export async function generateBroadcastText(p: { segment_id?: number; draft?: string }): Promise<string> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 900));
     const drafts = [
@@ -612,7 +612,7 @@ export async function generateBroadcastText(p: { segment_id: number }): Promise<
   const res = await fetch(new URL('/api/v1/analytics/rf/generate-broadcast-text/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ segment_id: p.segment_id }),
+    body: JSON.stringify({ ...(p.segment_id ? { segment_id: p.segment_id } : {}), ...(p.draft ? { draft: p.draft } : {}) }),
   });
   if (!res.ok) throw new Error(`AI text failed: ${res.status}`);
   const data = await res.json();
@@ -621,7 +621,7 @@ export async function generateBroadcastText(p: { segment_id: number }): Promise<
 }
 
 export async function sendBroadcast(p: {
-  segment_id: number;
+  segment_id?: number;
   message_text: string;
   mode: Mode;
   branch_ids: number[];
@@ -645,7 +645,7 @@ export async function sendBroadcast(p: {
     return { total_sent: Math.floor(Math.random() * 200) + 50 };
   }
   const fd = new FormData();
-  fd.append('segment_id', String(p.segment_id));
+  if (p.segment_id) fd.append('segment_id', String(p.segment_id));
   fd.append('message_text', p.message_text);
   fd.append('mode', p.mode);
   fd.append('branch_ids', p.branch_ids.join(','));

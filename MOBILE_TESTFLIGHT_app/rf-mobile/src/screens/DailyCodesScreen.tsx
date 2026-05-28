@@ -130,25 +130,26 @@ export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
           branchesActive.map(b => {
             const hasMissing = PURPOSES.some(p => !todayByKey.has(`${b.id}_${p}`));
             return (
-              <View key={b.id} style={[s.codeCard, hasMissing && s.codeCardMissing]}>
-                <View style={s.codeBranch}>
-                  <Text style={s.codeBranchName} numberOfLines={1}>{b.name}</Text>
-                  {hasMissing && (
-                    <Text style={s.codeBranchSub}>⚠ Часть кодов не сгенерирована</Text>
-                  )}
-                </View>
+              // flexDirection: 'column' переопределяет стандартный 'row' из codeCard
+              <View key={b.id} style={[s.codeCard, { flexDirection: 'column', alignItems: 'stretch', gap: 0 }, hasMissing && s.codeCardMissing]}>
+                <Text style={s.codeBranchName} numberOfLines={1}>{b.name}</Text>
+                {hasMissing && (
+                  <Text style={s.codeBranchSub}>⚠ Часть кодов не сгенерирована</Text>
+                )}
                 <View style={dc.purposeList}>
-                  {PURPOSES.map(purpose => {
+                  {PURPOSES.map((purpose, pi) => {
                     const key = `${b.id}_${purpose}`;
                     const code = todayByKey.get(key);
                     const isGen = generating === key;
                     return (
-                      <View key={purpose} style={dc.purposeRow}>
-                        <Text style={dc.purposeLabel}>{PURPOSE_LABELS[purpose]}</Text>
+                      <View key={purpose} style={[dc.purposeRow, pi < PURPOSES.length - 1 && dc.purposeRowBorder]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={dc.purposeLabel}>{PURPOSE_LABELS[purpose]}</Text>
+                        </View>
                         {isGen ? (
                           <ActivityIndicator size="small" color={C.purple} />
                         ) : code ? (
-                          <Text style={s.codeBig}>{code.code}</Text>
+                          <Text style={dc.codeText}>{code.code}</Text>
                         ) : (
                           <Pressable
                             style={dc.genBtn}
@@ -218,20 +219,27 @@ export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
 // ─────────────────────────────────────────────
 const dc = StyleSheet.create({
   purposeList: {
-    marginTop: 10,
-    gap: 8,
+    marginTop: 12,
   },
   purposeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: 9,
+  },
+  purposeRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E4E4E7',
   },
   purposeLabel: {
-    fontFamily: 'Manrope_500Medium',
-    fontSize: 13,
+    fontFamily: 'Manrope_600SemiBold',
+    fontSize: 13.5,
     color: C.ink2,
-    flex: 1,
+  },
+  codeText: {
+    fontFamily: 'Manrope_800ExtraBold',
+    fontSize: 20,
+    color: C.purple,
+    letterSpacing: 3,
   },
   genBtn: {
     flexDirection: 'row',
