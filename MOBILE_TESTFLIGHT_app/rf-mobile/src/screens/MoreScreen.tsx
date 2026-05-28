@@ -141,10 +141,6 @@ export const MoreScreen: React.FC<{
   if (sub === 'daily-codes')   return <DailyCodesScreen    onBack={() => setSub(null)} />;
 
   const open = (next: SubScreen) => () => { haptic('light'); setSub(next); };
-  const stub = (label: string) => () => {
-    haptic('light');
-    alert(`«${label}» — в разработке`);
-  };
 
   const fakePush = (type: PushType) => () => {
     haptic('medium');

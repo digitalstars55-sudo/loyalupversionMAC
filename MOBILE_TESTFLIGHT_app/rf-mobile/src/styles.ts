@@ -1371,7 +1371,7 @@ export function makeStyles(r: Resp) {
     },
     snapItemVal: {
       fontFamily: F.extrabold, fontSize: scale(24), color: C.ink,
-      letterSpacing: -0.6, lineHeight: scale(28),
+      letterSpacing: -0.6, lineHeight: scale(34),
     },
     snapItemSub: { fontFamily: F.medium, fontSize: 11, color: C.ink3, marginTop: 3 },
 

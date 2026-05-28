@@ -392,7 +392,13 @@ function Root({ onLogout }: { onLogout: () => void }) {
         <BranchRatingsScreen
           reviews={reviews}
           onBack={() => setOverlay(null)}
-          onOpenReviews={() => { setOverlay(null); setTab('reviews'); }}
+          onOpenReviews={(sentiment) => {
+            setOverlay(null);
+            if (sentiment === 'NEGATIVE' || sentiment === 'PARTIALLY_NEGATIVE') {
+              setReviewsPreset('urgent');
+            }
+            setTab('reviews');
+          }}
         />
         <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
       </View>
