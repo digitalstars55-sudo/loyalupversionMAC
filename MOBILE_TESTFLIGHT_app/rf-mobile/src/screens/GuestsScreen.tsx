@@ -36,7 +36,7 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
 
   const [loadError, setLoadError] = useState(false);
   const [totalVisits, setTotalVisits] = useState(0);
-  const [sortKey, setSortKey] = useState<SortKey>('last_visit');
+  const [sortKey, setSortKey] = useState<SortKey>('registered');
   const [sortOpen, setSortOpen] = useState(false);
 
   const load = async () => {
@@ -132,10 +132,10 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
       {sortOpen && (
         <View style={{ backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.line, paddingVertical: 8 }}>
           {([
+            { key: 'registered', label: '🆕 Новые гости первыми' },
             { key: 'last_visit', label: '🕐 По последнему визиту' },
             { key: 'frequency',  label: '📊 По числу визитов' },
             { key: 'name',       label: '🔤 По алфавиту' },
-            { key: 'registered', label: '📅 По алфавиту (сервер)' },
           ] as const).map(opt => (
             <Pressable
               key={opt.key}
