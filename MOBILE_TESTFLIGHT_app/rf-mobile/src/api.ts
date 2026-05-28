@@ -599,12 +599,12 @@ export async function fetchGuests(p: { mode: Mode; r_score: number; f_score: num
   return result.data;
 }
 
-export async function fetchGuestList(p?: { search?: string; limit?: number; offset?: number }): Promise<{ guests: Guest[]; total: number }> {
+export async function fetchGuestList(p?: { search?: string; limit?: number; offset?: number }): Promise<{ guests: Guest[]; total: number; total_visits: number }> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 300));
     const q = p?.search?.toLowerCase() ?? '';
     const all = q ? MOCK_GUESTS.filter(g => `${g.first_name} ${g.last_name}`.toLowerCase().includes(q)) : MOCK_GUESTS;
-    return { guests: all, total: all.length };
+    return { guests: all, total: all.length, total_visits: all.reduce((s, g) => s + g.frequency, 0) };
   }
   const url = new URL('/api/v1/guests/', getApiBase());
   if (p?.search) url.searchParams.set('search', p.search);

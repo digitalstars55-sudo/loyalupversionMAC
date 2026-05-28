@@ -34,12 +34,14 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
   const [activeVkId, setActiveVkId] = useState<string | null>(initialGuestVkId ?? null);
 
   const [loadError, setLoadError] = useState(false);
+  const [totalVisits, setTotalVisits] = useState(0);
 
   const load = async () => {
     setLoadError(false);
     try {
       const res = await fetchGuestList({ limit: 10000 });
       setItems(res.guests);
+      setTotalVisits(res.total_visits ?? 0);
     } catch { setItems([]); setLoadError(true); }
     finally { setLoading(false); setRefreshing(false); }
   };
@@ -125,6 +127,18 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         ListHeaderComponent={
           <View>
+            {!loading && totalVisits > 0 && (
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <View style={{ flex: 1, backgroundColor: C.purpleSoft, borderRadius: 12, padding: 12, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: 'Manrope_800ExtraBold', fontSize: 22, color: C.purpleDeep }}>{items.length}</Text>
+                  <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 11, color: C.ink3, marginTop: 2 }}>ГОСТЕЙ</Text>
+                </View>
+                <View style={{ flex: 1, backgroundColor: C.limeSoft, borderRadius: 12, padding: 12, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: 'Manrope_800ExtraBold', fontSize: 22, color: C.limeDeep }}>{totalVisits}</Text>
+                  <Text style={{ fontFamily: 'Manrope_600SemiBold', fontSize: 11, color: C.ink3, marginTop: 2 }}>ВИЗИТОВ</Text>
+                </View>
+              </View>
+            )}
             <View style={[s.rvFilters, { marginHorizontal: -r.pad, marginBottom: 10 }]}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.rvFiltersRow, { paddingHorizontal: r.pad }]}
                 contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingRight: r.pad + 4 }}>
