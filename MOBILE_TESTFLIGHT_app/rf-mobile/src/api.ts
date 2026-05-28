@@ -615,6 +615,26 @@ export async function fetchGuestList(p?: { search?: string; limit?: number; offs
   return await res.json();
 }
 
+export interface RFSegment { id: number; code: string; name: string; emoji: string; count: number; }
+
+export async function fetchSegments(): Promise<RFSegment[]> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 200));
+    return [
+      { id: 1, code: 'R3F3', name: 'Чемпионы', emoji: '🏆', count: 42 },
+      { id: 2, code: 'R2F3', name: 'Лояльные', emoji: '💎', count: 68 },
+      { id: 3, code: 'R1F3', name: 'Под угрозой', emoji: '⚠️', count: 23 },
+      { id: 4, code: 'R3F1', name: 'Новые', emoji: '🌱', count: 31 },
+    ];
+  }
+  const res = await fetch(new URL('/api/v1/analytics/segments/', getApiBase()).toString(), {
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  if (!res.ok) throw new Error(`Segments fetch failed: ${res.status}`);
+  const data = await res.json();
+  return data.segments ?? [];
+}
+
 export async function generateBroadcastText(p: { segment_id?: number; draft?: string }): Promise<string> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 900));

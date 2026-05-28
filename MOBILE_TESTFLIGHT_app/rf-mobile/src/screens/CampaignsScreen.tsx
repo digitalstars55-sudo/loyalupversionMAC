@@ -14,7 +14,8 @@ import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { fmtNum, relativeTime } from '../helpers';
-import { fetchCampaigns, generateBroadcastText, sendBroadcast, fetchBranches, deleteCampaign } from '../api';
+import { fetchCampaigns, generateBroadcastText, sendBroadcast, fetchBranches, deleteCampaign, fetchSegments } from '../api';
+import type { RFSegment } from '../api';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
 import type { Campaign, CampaignStatus, CampaignVariant, GenderFilter, RFBranch } from '../types';
@@ -43,21 +44,29 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   const [aiLoading, setAiLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [branches, setBranches] = useState<RFBranch[]>([]);
+  const [segments, setSegments] = useState<RFSegment[]>([]);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(null);
+  const [selectedBranchIds, setSelectedBranchIds] = useState<number[]>([]);   // пусто = все
+  const [genderFilter, setGenderFilter] = useState<GenderFilter>('all');
 
   const openCreate = () => {
     haptic('light');
     setCreateText('');
     setCreateDraft('');
     setCreateImageUri(null);
+    setSelectedSegmentId(null);
+    setSelectedBranchIds([]);
+    setGenderFilter('all');
     setCreateOpen(true);
     fetchBranches().then(list => setBranches(list.filter(b => b.id !== 0))).catch(() => {});
+    fetchSegments().then(setSegments).catch(() => {});
   };
 
   const onAiGenerate = async () => {
     haptic('light');
     setAiLoading(true);
     try {
-      const t = await generateBroadcastText({ draft: createDraft.trim() || undefined });
+      const t = await generateBroadcastText({ draft: createDraft.trim() || undefined, segment_id: selectedSegmentId ?? undefined });
       setCreateText(t);
       haptic('success');
     } catch (e: any) {
@@ -95,15 +104,18 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
     haptic('medium');
     setSending(true);
     try {
-      const branchIds = branches.map(b => b.id);
+      const branchIds = selectedBranchIds.length > 0 ? selectedBranchIds : branches.map(b => b.id);
       const res = await sendBroadcast({
         message_text: createText.trim(),
         mode: 'restaurant',
         branch_ids: branchIds,
         image_uri: createImageUri,
+        segment_id: selectedSegmentId ?? undefined,
+        gender_filter: genderFilter !== 'all' ? genderFilter : undefined,
       });
       haptic('success');
-      Alert.alert('Рассылка запущена', `Отправлено: ${res.total_sent} получателей.`);
+      const seg = selectedSegmentId ? (segments.find(s => s.id === selectedSegmentId)?.name ?? '') : 'Все гости';
+      Alert.alert('Рассылка запущена', `Сегмент: ${seg}\nОтправлено: ${res.total_sent} получателей.`);
       setCreateOpen(false);
       load();
     } catch (e: any) {
@@ -275,6 +287,42 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
             </View>
 
             <View style={{ flex: 1, paddingHorizontal: 16 }}>
+              {/* Сегмент аудитории */}
+              <Text style={camp.fieldLabel}>Аудитория</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                <Pressable
+                  style={[camp.segChip, selectedSegmentId === null && camp.segChipActive]}
+                  {...ripple()} onPress={() => setSelectedSegmentId(null)}
+                >
+                  <Text style={[camp.segChipText, selectedSegmentId === null && camp.segChipTextActive]}>📣 Все гости</Text>
+                </Pressable>
+                {segments.map(seg => (
+                  <Pressable
+                    key={seg.id}
+                    style={[camp.segChip, selectedSegmentId === seg.id && camp.segChipActive]}
+                    {...ripple()} onPress={() => setSelectedSegmentId(seg.id)}
+                  >
+                    <Text style={[camp.segChipText, selectedSegmentId === seg.id && camp.segChipTextActive]}>
+                      {seg.emoji} {seg.name} {seg.count > 0 ? `(${seg.count})` : ''}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* Пол */}
+              <Text style={camp.fieldLabel}>Пол</Text>
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 12 }}>
+                {([['all', 'Все'], ['m', 'Мужчины'], ['f', 'Женщины']] as const).map(([val, label]) => (
+                  <Pressable
+                    key={val}
+                    style={[camp.segChip, genderFilter === val && camp.segChipActive]}
+                    {...ripple()} onPress={() => setGenderFilter(val)}
+                  >
+                    <Text style={[camp.segChipText, genderFilter === val && camp.segChipTextActive]}>{label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
               {/* Подсказка для AI */}
               <Text style={camp.fieldLabel}>Подсказка для AI (необязательно)</Text>
               <TextInput
@@ -701,5 +749,25 @@ const camp = StyleSheet.create({
     fontSize: 15,
     color: C.surface,
     letterSpacing: 0.2,
+  },
+  segChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.line,
+    backgroundColor: C.paper,
+  },
+  segChipActive: {
+    backgroundColor: C.purpleSoft,
+    borderColor: C.purpleLine,
+  },
+  segChipText: {
+    fontFamily: 'Manrope_600SemiBold',
+    fontSize: 12,
+    color: C.ink2,
+  },
+  segChipTextActive: {
+    color: C.purpleDeep,
   },
 });
