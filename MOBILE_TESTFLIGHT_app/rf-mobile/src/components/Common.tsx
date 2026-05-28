@@ -35,7 +35,7 @@ export const KPI: React.FC<{ tone: KPITone; label: string; value: string; sub: s
         <Text style={[s.kpiTrendText, { color: up ? C.good : C.warn }]}>{Math.abs(delta)}%</Text>
       </View>
       <Text style={s.kpiLabel}>{label}</Text>
-      <Text style={[s.kpiVal, { color: valueColor }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <Text style={[s.kpiVal, { color: valueColor }]} numberOfLines={1}>{value}</Text>
       <Text style={s.kpiSub}>{sub}</Text>
     </View>
   );

@@ -20,7 +20,7 @@ export interface RFSummary {
   total_delta_pct?: number; active_delta_pct?: number;
   at_risk_delta_pct?: number; lost_delta_pct?: number;
 }
-export interface RFMigration { from: string; to: string; count: number; }
+export interface RFMigration { from: string; to: string; count: number; from_emoji?: string; to_emoji?: string; }
 export interface RFBranch {
   id: number;
   name: string;

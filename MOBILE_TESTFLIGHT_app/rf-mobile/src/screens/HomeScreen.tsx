@@ -526,8 +526,8 @@ const DailyCodesCard: React.FC<{
                   const m = CODE_META[c.purpose];
                   return (
                     <View key={c.id} style={[dc.pill, { backgroundColor: m.bg }]}>
-                      <Text style={[dc.pillLabel, { color: m.color }]}>{m.emoji} {m.label}</Text>
-                      <Text style={[dc.pillCode, { color: m.color }]}>{c.code}</Text>
+                      <Text style={[dc.pillLabel, { color: m.color }]} numberOfLines={1}>{m.emoji} {m.label}</Text>
+                      <Text style={[dc.pillCode, { color: m.color }]} numberOfLines={1} adjustsFontSizeToFit>{c.code}</Text>
                     </View>
                   );
                 })}
@@ -564,13 +564,13 @@ const dc = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 10, gap: 8,
   },
   branchName: { fontFamily: 'Manrope_700Bold', fontSize: 12.5, color: C.surface },
-  codePills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  codePills: { flexDirection: 'row', gap: 6 },
   pill: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 50,
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 6, paddingVertical: 6, borderRadius: 12, gap: 1,
   },
-  pillLabel: { fontFamily: 'Manrope_700Bold', fontSize: 10.5 },
-  pillCode: { fontFamily: 'Manrope_800ExtraBold', fontSize: 13, letterSpacing: 1 },
+  pillLabel: { fontFamily: 'Manrope_700Bold', fontSize: 9.5, letterSpacing: 0.2 },
+  pillCode: { fontFamily: 'Manrope_800ExtraBold', fontSize: 15, letterSpacing: 0.5 },
   more: { fontFamily: 'Manrope_600SemiBold', fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 2 },
 });
 

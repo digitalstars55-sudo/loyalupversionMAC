@@ -560,7 +560,15 @@ function _normalizeRFResponse(raw: any): RFMatrixResponse {
     // Бэк отдаёт summary с ключами {vip_f3, at_risk}, а мобайл ждёт
     // {active_r3, at_risk_r1}. Считаем из перемапированных cells сами.
     summary: { total, active_r3, at_risk_r1, lost_r0 },
-    migrations: raw?.migrations ?? [],
+    // Бэк отдаёт {from_name, to_name, from_emoji, to_emoji, count} — нормализуем
+    // под мобильный RFMigration {from, to, count, ...emoji}.
+    migrations: (raw?.migrations ?? []).map((m: any) => ({
+      from:       m.from ?? m.from_name ?? '—',
+      to:         m.to ?? m.to_name ?? '—',
+      count:      m.count ?? 0,
+      from_emoji: m.from_emoji ?? '',
+      to_emoji:   m.to_emoji ?? '',
+    })),
     branches:   raw?.branches ?? [],
     updated_at: raw?.updated_at ?? new Date().toISOString(),
   };
@@ -1073,7 +1081,13 @@ export async function fetchFullMigrations(p: { mode: Mode; period_days: number }
   const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Migrations fetch failed: ${res.status}`);
   const data = await res.json();
-  return data.migrations ?? [];
+  return (data.migrations ?? []).map((m: any) => ({
+    from:       m.from ?? m.from_name ?? '—',
+    to:         m.to ?? m.to_name ?? '—',
+    count:      m.count ?? 0,
+    from_emoji: m.from_emoji ?? '',
+    to_emoji:   m.to_emoji ?? '',
+  }));
 }
 
 // ════════════════════════════════════════════════════════════════════

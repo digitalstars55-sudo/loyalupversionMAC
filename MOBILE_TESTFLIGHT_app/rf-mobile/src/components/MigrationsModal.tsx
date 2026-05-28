@@ -117,13 +117,15 @@ export const MigrationsModal: React.FC<{
               ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: C.lineSoft }} />}
               renderItem={({ item }) => (
                 <View style={[s.migRow, { paddingHorizontal: 0 }]}>
-                  <Text style={s.migFrom} numberOfLines={1} ellipsizeMode="tail">{item.from}</Text>
+                  <Text style={s.migFrom} numberOfLines={1} ellipsizeMode="tail">
+                    {item.from_emoji ? `${item.from_emoji} ` : ''}{item.from}
+                  </Text>
                   <ArrowRight size={14} color={C.ink4} strokeWidth={2.2} />
                   <Text
                     style={[s.migTo, item.count < 0 && { color: C.warn }]}
                     numberOfLines={1} ellipsizeMode="tail"
                   >
-                    {item.to}
+                    {item.to_emoji ? `${item.to_emoji} ` : ''}{item.to}
                   </Text>
                   <View style={[s.migCount, item.count < 0 ? s.migCountNeg : s.migCountPos]}>
                     <Text style={[s.migCountText, item.count < 0 ? s.migCountTextNeg : s.migCountTextPos]}>

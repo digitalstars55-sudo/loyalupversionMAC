@@ -153,7 +153,7 @@ export function makeStyles(r: Resp) {
       fontFamily: F.bold, fontSize: 10, color: C.ink3,
       letterSpacing: 2, textTransform: 'uppercase', marginTop: 6,
     },
-    kpiVal: { fontFamily: F.extrabold, fontSize: scale(30), lineHeight: scale(44), marginTop: 6, letterSpacing: -1, includeFontPadding: false },
+    kpiVal: { fontFamily: F.extrabold, fontSize: scale(26), lineHeight: scale(38), marginTop: 6, letterSpacing: -0.5 },
     kpiSub: { fontFamily: F.medium, fontSize: 11, color: C.ink3, marginTop: 5, lineHeight: 15 },
 
     secHead: {
@@ -1370,8 +1370,8 @@ export function makeStyles(r: Resp) {
       letterSpacing: 1.6, textTransform: 'uppercase',
     },
     snapItemVal: {
-      fontFamily: F.extrabold, fontSize: scale(24), color: C.ink,
-      letterSpacing: -0.6, lineHeight: scale(34),
+      fontFamily: F.extrabold, fontSize: scale(22), color: C.ink,
+      letterSpacing: -0.5, lineHeight: scale(32), paddingTop: 2,
     },
     snapItemSub: { fontFamily: F.medium, fontSize: 11, color: C.ink3, marginTop: 3 },
 

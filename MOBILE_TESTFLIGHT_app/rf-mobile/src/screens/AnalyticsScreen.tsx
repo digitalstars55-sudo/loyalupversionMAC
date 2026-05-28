@@ -553,9 +553,13 @@ export function AnalyticsScreen({
         <View style={s.migrations}>
           {migrations.map((m, i) => (
             <View key={i} style={[s.migRow, i === migrations.length - 1 && s.migRowLast]}>
-              <Text style={s.migFrom} numberOfLines={1} ellipsizeMode="tail">{m.from}</Text>
+              <Text style={s.migFrom} numberOfLines={1} ellipsizeMode="tail">
+                {m.from_emoji ? `${m.from_emoji} ` : ''}{m.from}
+              </Text>
               <Text style={s.migArrow}>→</Text>
-              <Text style={[s.migTo, m.count < 0 && { color: C.warn }]} numberOfLines={1} ellipsizeMode="tail">{m.to}</Text>
+              <Text style={[s.migTo, m.count < 0 && { color: C.warn }]} numberOfLines={1} ellipsizeMode="tail">
+                {m.to_emoji ? `${m.to_emoji} ` : ''}{m.to}
+              </Text>
               <View style={[s.migCount, m.count < 0 ? s.migCountNeg : s.migCountPos]}>
                 <Text style={[s.migCountText, m.count < 0 ? s.migCountTextNeg : s.migCountTextPos]}>
                   {m.count > 0 ? `+${m.count}` : `${m.count}`}
