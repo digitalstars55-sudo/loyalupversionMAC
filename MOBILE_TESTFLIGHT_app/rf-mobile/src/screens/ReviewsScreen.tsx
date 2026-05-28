@@ -71,7 +71,7 @@ export const ReviewsScreen: React.FC<{
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<Review | null>(null);
-  const [periodDays, setPeriodDays] = useState<number | 'all'>(30);
+  const [periodDays, setPeriodDays] = useState<number | 'all'>('all');
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
   const [branchId, setBranchId] = useState<number | 'all'>('all');
@@ -381,6 +381,7 @@ export const ReviewsScreen: React.FC<{
             <SummaryStrip total={totalCount} pending={pendingCount} counts={sentimentCounts} s={s}
               negativeOnly={sentimentCounts.NEGATIVE}
               partialNeg={sentimentCounts.PARTIALLY_NEGATIVE}
+              periodLabel={periodDays === 'all' ? 'за всё время' : `за ${periodDays} дн`}
             />
 
             <View style={s.searchWrap}>
@@ -675,7 +676,8 @@ const SummaryStrip: React.FC<{
   s: S;
   negativeOnly: number;
   partialNeg: number;
-}> = ({ total, pending, counts, s, negativeOnly, partialNeg }) => {
+  periodLabel?: string;
+}> = ({ total, pending, counts, s, negativeOnly, partialNeg, periodLabel }) => {
   type SegRow = { key: Sentiment; label: string; color: string; count: number };
   const segments: SegRow[] = ([
     { key: 'POSITIVE',           label: 'Позитив',  color: C.good,   count: counts.POSITIVE },
@@ -696,7 +698,7 @@ const SummaryStrip: React.FC<{
             {partialNeg > 0 ? ` + ${partialNeg} частично` : ''}
           </Text>
         </View>
-        <Text style={s.rvSummaryLbl}>{`Всего\n${fmtNum(total)}`}</Text>
+        <Text style={s.rvSummaryLbl}>{`Всего (${periodLabel ?? 'всё время'})\n${fmtNum(total)}`}</Text>
       </View>
 
       <View style={s.rvSummaryBarWrap}>

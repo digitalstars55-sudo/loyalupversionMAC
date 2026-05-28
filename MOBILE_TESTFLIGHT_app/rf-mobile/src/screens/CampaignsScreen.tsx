@@ -163,11 +163,27 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   const [editCampaignItem, setEditCampaignItem] = useState<Campaign | null>(null);
   const [editText, setEditText] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [editTimeLeft, setEditTimeLeft] = useState('');
 
   const onEditOpen = (c: Campaign) => {
+    const msElapsed = Date.now() - new Date(c.sent_at).getTime();
+    const hoursElapsed = msElapsed / (1000 * 60 * 60);
+    if (hoursElapsed >= 24) {
+      haptic('warning');
+      const h = Math.floor(hoursElapsed);
+      Alert.alert(
+        '⏱ Время редактирования истекло',
+        `Изменять рассылку можно только в первые 24 часа после отправки.\nПрошло: ${h} ч. — сообщения у гостей остаются как есть.`,
+      );
+      return;
+    }
+    const hoursLeft = 24 - hoursElapsed;
+    const hLeft = Math.floor(hoursLeft);
+    const mLeft = Math.floor((hoursLeft - hLeft) * 60);
     haptic('light');
     setEditCampaignItem(c);
     setEditText(c.message_text);
+    setEditTimeLeft(`Осталось ${hLeft} ч. ${mLeft} мин.`);
   };
 
   const onEditSave = async () => {
@@ -229,16 +245,17 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
             {!loading && items.length > 0 && (
               <View style={[s.tasksCard, { marginHorizontal: 0, marginBottom: 14 }]}>
                 <View style={s.tasksHeadRow}>
-                  <Text style={s.tasksTitle}>Всего отправлено</Text>
+                  <Text style={s.tasksTitle}>Статистика рассылок</Text>
                   <Text style={s.tasksCount}>за всё время</Text>
                 </View>
-                <View style={[s.taskRow, { borderTopWidth: 0, paddingTop: 4 }]}>
-                  <View style={[s.taskIconWrap, { backgroundColor: C.purpleSoft }]}>
-                    <Megaphone size={18} color={C.purpleDeep} strokeWidth={2.2} />
+                <View style={{ flexDirection: 'row', paddingTop: 8, gap: 16 }}>
+                  <View style={{ flex: 1, alignItems: 'center', paddingVertical: 8, backgroundColor: C.purpleSoft, borderRadius: 12 }}>
+                    <Text style={[s.snapItemVal, { fontSize: 26 }]}>{fmtNum(totalDelivered)}</Text>
+                    <Text style={[s.snapItemSub, { textAlign: 'center', marginTop: 2 }]}>получателей</Text>
                   </View>
-                  <View style={s.taskTextWrap}>
-                    <Text style={[s.snapItemVal, { fontSize: 28 }]}>{fmtNum(totalDelivered)}</Text>
-                    <Text style={s.taskSub}>{items.length} {plural(items.length, ['рассылка', 'рассылки', 'рассылок'])}</Text>
+                  <View style={{ flex: 1, alignItems: 'center', paddingVertical: 8, backgroundColor: C.lineSoft, borderRadius: 12 }}>
+                    <Text style={[s.snapItemVal, { fontSize: 26 }]}>{fmtNum(items.length)}</Text>
+                    <Text style={[s.snapItemSub, { textAlign: 'center', marginTop: 2 }]}>{plural(items.length, ['запуск', 'запуска', 'запусков'])}</Text>
                   </View>
                 </View>
               </View>
@@ -319,7 +336,7 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
               <View style={{ height: 8 }} />
               <View style={[camp.toolRow, { backgroundColor: C.warnSoft, borderRadius: 10, padding: 10, marginBottom: 8 }]}>
                 <Text style={{ fontSize: 12, color: C.warn, fontFamily: 'Manrope_600SemiBold', flex: 1 }}>
-                  ⏱ Изменения применяются только к сообщениям, отправленным менее 24 часов назад.
+                  ⏱ {editTimeLeft ? `${editTimeLeft} на изменение.` : ''} Изменения применяются только к сообщениям до 24 часов. Текст у получателей обновится автоматически.
                 </Text>
               </View>
             </ScrollView>

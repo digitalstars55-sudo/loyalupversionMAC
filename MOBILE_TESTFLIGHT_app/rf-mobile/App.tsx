@@ -316,7 +316,7 @@ function Root({ onLogout }: { onLogout: () => void }) {
   // отдельная проверка bootstrapping/token здесь не нужна (этих переменных
   // нет в скоупе Root).
   useEffect(() => {
-    fetchReviews({ period_days: 30 }).then(list => {
+    fetchReviews({}).then(list => {
       if (list) setReviews(list);
     }).catch(() => {});
     fetchAutoReplySettings().then(s => {
