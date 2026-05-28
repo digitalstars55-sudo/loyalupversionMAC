@@ -4,13 +4,13 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Search, X, Users, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, Search, X, Users, ChevronRight, AlertTriangle, RefreshCw } from 'lucide-react-native';
 
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { fmtNum, avatarColor, initials } from '../helpers';
-import { fetchGuests } from '../api';
+import { fetchGuestList } from '../api';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
 import { GuestDetailScreen } from './GuestDetailScreen';
@@ -33,11 +33,14 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
   const [rFilter, setRFilter] = useState<RFilter>('all');
   const [activeVkId, setActiveVkId] = useState<string | null>(initialGuestVkId ?? null);
 
+  const [loadError, setLoadError] = useState(false);
+
   const load = async () => {
+    setLoadError(false);
     try {
-      const list = await fetchGuests({ mode: 'restaurant', r_score: 2, f_score: 2, branch_ids: [] });
-      setItems(list);
-    } catch { setItems([]); }
+      const res = await fetchGuestList({ limit: 500 });
+      setItems(res.guests);
+    } catch { setItems([]); setLoadError(true); }
     finally { setLoading(false); setRefreshing(false); }
   };
 
@@ -157,7 +160,17 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
           </View>
         }
         ListEmptyComponent={
-          loading ? null : (
+          loading ? null : loadError ? (
+            <View style={s.emptyState}>
+              <AlertTriangle size={36} color={C.warn} strokeWidth={1.5} />
+              <Text style={s.emptyStateTitle}>Ошибка загрузки</Text>
+              <Text style={s.emptyStateSub}>Не удалось загрузить гостей. Проверьте соединение.</Text>
+              <Pressable style={[s.btn, s.btnSecondary, { alignSelf: 'center', marginTop: 12 }]} {...ripple()} onPress={() => { setLoading(true); load(); }}>
+                <RefreshCw size={14} color={C.ink} strokeWidth={2} />
+                <Text style={s.btnSecondaryText}>Повторить</Text>
+              </Pressable>
+            </View>
+          ) : (
             <View style={s.emptyState}>
               <Users size={36} color={C.ink4} strokeWidth={1.5} />
               <Text style={s.emptyStateTitle}>Никого не нашли</Text>

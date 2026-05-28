@@ -599,6 +599,22 @@ export async function fetchGuests(p: { mode: Mode; r_score: number; f_score: num
   return result.data;
 }
 
+export async function fetchGuestList(p?: { search?: string; limit?: number; offset?: number }): Promise<{ guests: Guest[]; total: number }> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 300));
+    const q = p?.search?.toLowerCase() ?? '';
+    const all = q ? MOCK_GUESTS.filter(g => `${g.first_name} ${g.last_name}`.toLowerCase().includes(q)) : MOCK_GUESTS;
+    return { guests: all, total: all.length };
+  }
+  const url = new URL('/api/v1/guests/', getApiBase());
+  if (p?.search) url.searchParams.set('search', p.search);
+  if (p?.limit) url.searchParams.set('limit', String(p.limit));
+  if (p?.offset) url.searchParams.set('offset', String(p.offset));
+  const res = await netFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  if (!res.ok) throw new Error(`Guests list failed: ${res.status}`);
+  return await res.json();
+}
+
 export async function generateBroadcastText(p: { segment_id?: number; draft?: string }): Promise<string> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 900));
@@ -966,6 +982,18 @@ export async function fetchCampaigns(): Promise<Campaign[]> {
   if (!res.ok) throw new Error(`Campaigns fetch failed: ${res.status}`);
   const data = await res.json();
   return data.campaigns ?? [];
+}
+
+export async function deleteCampaign(id: number): Promise<void> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return; }
+  const res = await fetch(new URL(`/api/v1/analytics/campaigns/${id}/`, getApiBase()).toString(), {
+    method: 'DELETE',
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.detail ?? `Delete failed: ${res.status}`);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════

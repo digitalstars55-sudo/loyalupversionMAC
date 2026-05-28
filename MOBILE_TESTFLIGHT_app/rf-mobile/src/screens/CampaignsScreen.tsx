@@ -7,14 +7,14 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft, Megaphone, CheckCircle2, AlertTriangle, Clock, TestTube2, Trophy,
-  Plus, X, Sparkles, Send,
+  Plus, X, Sparkles, Send, Trash2,
 } from 'lucide-react-native';
 
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { fmtNum, relativeTime } from '../helpers';
-import { fetchCampaigns, generateBroadcastText, sendBroadcast, fetchBranches } from '../api';
+import { fetchCampaigns, generateBroadcastText, sendBroadcast, fetchBranches, deleteCampaign } from '../api';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
 import type { Campaign, CampaignStatus, CampaignVariant, GenderFilter, RFBranch } from '../types';
@@ -123,6 +123,29 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
 
   const onRefresh = () => { haptic('light'); setRefreshing(true); load(); };
 
+  const onDelete = (c: Campaign) => {
+    haptic('medium');
+    Alert.alert(
+      'Удалить рассылку?',
+      `«${c.segment_name}» · ${c.total_sent} получателей · ${relativeTime(c.sent_at)}\n\nЗапись будет удалена из истории без возможности восстановления.`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить', style: 'destructive', onPress: async () => {
+            try {
+              await deleteCampaign(c.id);
+              haptic('success');
+              setItems(prev => prev.filter(x => x.id !== c.id));
+            } catch (e: any) {
+              haptic('error');
+              Alert.alert('Ошибка', e?.message ?? 'Не удалось удалить рассылку');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const filtered = useMemo(() => {
     if (filter === 'all') return items;
     return items.filter(c => c.status === filter);
@@ -229,7 +252,7 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
             </View>
           )
         }
-        renderItem={({ item }) => <CampaignCard c={item} s={s} />}
+        renderItem={({ item }) => <CampaignCard c={item} s={s} onDelete={() => onDelete(item)} />}
       />
 
       {/* FAB — создать рассылку */}
@@ -330,9 +353,10 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
 };
 
 // ─────────────────────────────────────────────
-const CampaignCard: React.FC<{ c: Campaign; s: S }> = ({ c, s }) => {
+const CampaignCard: React.FC<{ c: Campaign; s: S; onDelete: () => void }> = ({ c, s, onDelete }) => {
   const reach = c.total_target > 0 ? Math.round((c.total_sent / c.total_target) * 100) : 0;
   const isAb = !!c.variants && c.variants.length === 2;
+  const canDelete = c.status !== 'sending';
   return (
     <View style={s.listCard}>
       <View style={[s.listIcon, { backgroundColor: isAb ? '#EEF2FF' : C.purpleSoft }]}>
@@ -363,6 +387,16 @@ const CampaignCard: React.FC<{ c: Campaign; s: S }> = ({ c, s }) => {
           )}
         </View>
       </View>
+      {canDelete && (
+        <Pressable
+          style={{ padding: 8, marginLeft: 4 }}
+          {...ripple()}
+          onPress={onDelete}
+          hitSlop={8}
+        >
+          <Trash2 size={16} color={C.ink4} strokeWidth={2} />
+        </Pressable>
+      )}
     </View>
   );
 };

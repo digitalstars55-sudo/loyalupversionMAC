@@ -4,7 +4,7 @@ import {
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Image, RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Send, Paperclip, Phone, X } from 'lucide-react-native';
 
 import { C } from '../theme';
@@ -49,11 +49,10 @@ export const ChatScreen: React.FC<{
 }> = ({ messages, setMessages }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
-  const { bottom: bottomInset } = useSafeAreaInsets();
-  // tabbar: position absolute, bottom:24, height = tabContent(92) + paddingV(16) = 108 на обычном телефоне.
-  // На всех разрешениях: tabBarH = minHeight + 16.
+  // tabbar: position absolute, bottom:24 от экрана (не safe area).
+  // height = tab minHeight + tabbar paddingTop(8) + paddingBottom(8)
   const tabBarH = (r.isTablet ? 110 : r.isTiny ? 78 : r.isSmall ? 84 : 92) + 16;
-  const chatMarginBottom = 24 + tabBarH + bottomInset + 8;
+  const chatMarginBottom = 24 + tabBarH + 8;
 
   const [manager, setManager] = useState<ChatManager | null>(null);
   const [text, setText] = useState('');
