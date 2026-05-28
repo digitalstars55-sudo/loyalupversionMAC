@@ -157,7 +157,7 @@ export const MoreScreen: React.FC<{
 
       <View style={s.screenHeader}>
         <View style={s.screenTitleBlock}>
-          <Text style={s.screenTitleSuper}>Кабинет</Text>
+          <Text style={s.screenTitleSuper}>Кабинет · OTA ✓</Text>
           <Text style={s.screenTitleMain}>Ещё</Text>
         </View>
       </View>
