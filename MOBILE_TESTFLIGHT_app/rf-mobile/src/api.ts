@@ -1004,6 +1004,20 @@ export async function fetchCampaigns(): Promise<Campaign[]> {
   return data.campaigns ?? [];
 }
 
+export async function editCampaign(id: number, message_text: string): Promise<{ updated: number; skipped: string[]; errors: string[] }> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 400)); return { updated: 5, skipped: [], errors: [] }; }
+  const res = await fetch(new URL(`/api/v1/analytics/campaigns/${id}/`, getApiBase()).toString(), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() },
+    body: JSON.stringify({ message_text }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body?.detail ?? `Edit failed: ${res.status}`);
+  }
+  return await res.json();
+}
+
 export async function deleteCampaign(id: number): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return; }
   const res = await fetch(new URL(`/api/v1/analytics/campaigns/${id}/`, getApiBase()).toString(), {

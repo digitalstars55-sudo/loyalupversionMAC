@@ -2,19 +2,20 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, RefreshControl, StyleSheet,
   Modal, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft, Megaphone, CheckCircle2, AlertTriangle, Clock, TestTube2, Trophy,
-  Plus, X, Sparkles, Send, Trash2,
+  Plus, X, Sparkles, Send, Trash2, Edit2,
 } from 'lucide-react-native';
 
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { fmtNum, relativeTime } from '../helpers';
-import { fetchCampaigns, generateBroadcastText, sendBroadcast, fetchBranches, deleteCampaign, fetchSegments } from '../api';
+import { fetchCampaigns, generateBroadcastText, sendBroadcast, fetchBranches, deleteCampaign, fetchSegments, editCampaign } from '../api';
 import type { RFSegment } from '../api';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
@@ -158,6 +159,33 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
     );
   };
 
+  // ── Редактирование рассылки (24ч окно) ──────────────────────────────
+  const [editCampaignItem, setEditCampaignItem] = useState<Campaign | null>(null);
+  const [editText, setEditText] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const onEditOpen = (c: Campaign) => {
+    haptic('light');
+    setEditCampaignItem(c);
+    setEditText(c.message_text);
+  };
+
+  const onEditSave = async () => {
+    if (!editCampaignItem || !editText.trim()) return;
+    haptic('medium');
+    setEditSaving(true);
+    try {
+      const result = await editCampaign(editCampaignItem.id, editText.trim());
+      haptic('success');
+      setItems(prev => prev.map(x => x.id === editCampaignItem.id ? { ...x, message_text: editText.trim() } : x));
+      Alert.alert('Обновлено', `Изменено: ${result.updated} сообщений.${result.errors.length ? `\nОшибок: ${result.errors.length}` : ''}`);
+      setEditCampaignItem(null);
+    } catch (e: any) {
+      haptic('error');
+      Alert.alert('Ошибка', e?.message ?? 'Не удалось обновить');
+    } finally { setEditSaving(false); }
+  };
+
   const filtered = useMemo(() => {
     if (filter === 'all') return items;
     return items.filter(c => c.status === filter);
@@ -264,8 +292,51 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
             </View>
           )
         }
-        renderItem={({ item }) => <CampaignCard c={item} s={s} onDelete={() => onDelete(item)} />}
+        renderItem={({ item }) => <CampaignCard c={item} s={s} onDelete={() => onDelete(item)} onEdit={() => onEditOpen(item)} />}
       />
+
+      {/* Модал редактирования рассылки (24ч окно) */}
+      <Modal visible={!!editCampaignItem} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setEditCampaignItem(null)}>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.surface }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+            <View style={camp.modalHeader}>
+              <Pressable {...ripple()} onPress={() => setEditCampaignItem(null)} style={camp.modalClose}>
+                <X size={20} color={C.ink2} strokeWidth={2.2} />
+              </Pressable>
+              <Text style={camp.modalTitle}>Изменить рассылку</Text>
+              <View style={{ width: 36 }} />
+            </View>
+            <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+              <Text style={camp.fieldLabel}>Текст рассылки</Text>
+              <TextInput
+                style={[camp.input, { flex: 1, textAlignVertical: 'top', minHeight: 120 }]}
+                value={editText}
+                onChangeText={setEditText}
+                multiline
+                editable={!editSaving}
+              />
+              <Text style={camp.charCount}>{editText.length} / 4096</Text>
+              <View style={{ height: 8 }} />
+              <View style={[camp.toolRow, { backgroundColor: C.warnSoft, borderRadius: 10, padding: 10, marginBottom: 8 }]}>
+                <Text style={{ fontSize: 12, color: C.warn, fontFamily: 'Manrope_600SemiBold', flex: 1 }}>
+                  ⏱ Изменения применяются только к сообщениям, отправленным менее 24 часов назад.
+                </Text>
+              </View>
+            </ScrollView>
+            <View style={camp.sendRow}>
+              <Pressable
+                style={[camp.sendBtn, (editSaving || !editText.trim()) && { opacity: 0.45 }]}
+                {...ripple('rgba(255,255,255,0.22)')}
+                onPress={onEditSave}
+                disabled={editSaving || !editText.trim()}
+              >
+                {editSaving ? <ActivityIndicator size="small" color={C.surface} /> : <Edit2 size={18} color={C.surface} strokeWidth={2.2} />}
+                <Text style={camp.sendBtnText}>{editSaving ? 'Сохраняем...' : 'Обновить в VK'}</Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* FAB — создать рассылку */}
       <Pressable style={camp.fab} {...ripple('rgba(255,255,255,0.22)', true)} onPress={openCreate}>
@@ -286,7 +357,7 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
               <View style={{ width: 36 }} />
             </View>
 
-            <View style={{ flex: 1, paddingHorizontal: 16 }}>
+            <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {/* Сегмент аудитории */}
               <Text style={camp.fieldLabel}>Аудитория</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
@@ -376,7 +447,7 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
                 editable={!sending}
               />
               <Text style={camp.charCount}>{createText.length} / 4096</Text>
-            </View>
+            </ScrollView>
 
             {/* Кнопка отправки */}
             <View style={camp.sendRow}>
@@ -401,7 +472,7 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
 };
 
 // ─────────────────────────────────────────────
-const CampaignCard: React.FC<{ c: Campaign; s: S; onDelete: () => void }> = ({ c, s, onDelete }) => {
+const CampaignCard: React.FC<{ c: Campaign; s: S; onDelete: () => void; onEdit: () => void }> = ({ c, s, onDelete, onEdit }) => {
   const reach = c.total_target > 0 ? Math.round((c.total_sent / c.total_target) * 100) : 0;
   const isAb = !!c.variants && c.variants.length === 2;
   const canDelete = c.status !== 'sending';
@@ -435,16 +506,18 @@ const CampaignCard: React.FC<{ c: Campaign; s: S; onDelete: () => void }> = ({ c
           )}
         </View>
       </View>
-      {canDelete && (
-        <Pressable
-          style={{ padding: 8, marginLeft: 4 }}
-          {...ripple()}
-          onPress={onDelete}
-          hitSlop={8}
-        >
-          <Trash2 size={16} color={C.ink4} strokeWidth={2} />
-        </Pressable>
-      )}
+      <View style={{ flexDirection: 'column', gap: 2 }}>
+        {c.status === 'sent' && (
+          <Pressable style={{ padding: 8 }} {...ripple()} onPress={onEdit} hitSlop={8}>
+            <Edit2 size={15} color={C.ink3} strokeWidth={2} />
+          </Pressable>
+        )}
+        {canDelete && (
+          <Pressable style={{ padding: 8 }} {...ripple()} onPress={onDelete} hitSlop={8}>
+            <Trash2 size={15} color={C.ink4} strokeWidth={2} />
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 };

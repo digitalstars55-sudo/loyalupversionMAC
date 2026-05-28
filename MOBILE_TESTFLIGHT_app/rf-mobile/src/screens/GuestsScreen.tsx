@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, Pressable, FlatList, RefreshControl, TextInput,
+  View, Text, Pressable, FlatList, RefreshControl, TextInput, ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -126,7 +126,8 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
         ListHeaderComponent={
           <View>
             <View style={[s.rvFilters, { marginHorizontal: -r.pad, marginBottom: 10 }]}>
-              <View style={[s.rvFiltersRow, { paddingHorizontal: r.pad }]}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.rvFiltersRow, { paddingHorizontal: r.pad }]}
+                contentContainerStyle={{ flexDirection: 'row', gap: 8, paddingRight: r.pad + 4 }}>
                 {([
                   { key: 'all',   label: 'Все',         count: counts.all },
                   { key: 'fresh', label: '🌱 Свежие',   count: counts.fresh },
@@ -149,7 +150,7 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
                     </Pressable>
                   );
                 })}
-              </View>
+              </ScrollView>
             </View>
 
             {loading && (
