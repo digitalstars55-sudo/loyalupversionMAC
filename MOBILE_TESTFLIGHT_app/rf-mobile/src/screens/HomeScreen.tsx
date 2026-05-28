@@ -303,7 +303,7 @@ export const HomeScreen: React.FC<{
                 </View>
                 <Text style={s.snapItemVal}>
                   {reviews.filter(rev =>
-                    (rev.sentiment === 'NEGATIVE' || rev.sentiment === 'PARTIALLY_NEGATIVE') &&
+                    rev.sentiment === 'NEGATIVE' &&
                     !rev.is_replied &&
                     Date.now() - new Date(rev.last_message_at).getTime() < 7 * 86_400_000
                   ).length}

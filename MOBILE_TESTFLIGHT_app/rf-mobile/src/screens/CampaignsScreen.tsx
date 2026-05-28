@@ -33,6 +33,7 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // ── Создание рассылки ─────────────────────────────────────────────
   const [createOpen, setCreateOpen] = useState(false);
@@ -112,8 +113,10 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   };
 
   const load = async () => {
+    setLoadError(null);
     try { setItems(await fetchCampaigns()); }
-    catch {} finally { setLoading(false); setRefreshing(false); }
+    catch (e: any) { setLoadError(e?.message ?? 'Не удалось загрузить рассылки'); }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
   useEffect(() => { load(); }, []);
@@ -212,11 +215,17 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
           </View>
         }
         ListEmptyComponent={
-          loading ? null : (
+          loading ? null : loadError ? (
+            <View style={s.emptyState}>
+              <AlertTriangle size={36} color={C.warn} strokeWidth={1.5} />
+              <Text style={s.emptyStateTitle}>Ошибка загрузки</Text>
+              <Text style={s.emptyStateSub}>{loadError}</Text>
+            </View>
+          ) : (
             <View style={s.emptyState}>
               <Megaphone size={36} color={C.ink4} strokeWidth={1.5} />
               <Text style={s.emptyStateTitle}>Рассылок пока нет</Text>
-              <Text style={s.emptyStateSub}>Запустите первую рассылку из аналитики — выберите сегмент и нажмите «Рассылка».</Text>
+              <Text style={s.emptyStateSub}>Нажмите «Новая рассылка» чтобы запустить первую. История появится здесь после отправки.</Text>
             </View>
           )
         }
