@@ -378,7 +378,10 @@ export const ReviewsScreen: React.FC<{
               </Pressable>
             </View>
 
-            <SummaryStrip total={totalCount} pending={pendingCount} counts={sentimentCounts} s={s} />
+            <SummaryStrip total={totalCount} pending={pendingCount} counts={sentimentCounts} s={s}
+              negativeOnly={sentimentCounts.NEGATIVE}
+              partialNeg={sentimentCounts.PARTIALLY_NEGATIVE}
+            />
 
             <View style={s.searchWrap}>
               <Search size={16} color={C.ink4} strokeWidth={2} />
@@ -670,7 +673,9 @@ const SummaryStrip: React.FC<{
   pending: number;
   counts: Record<Sentiment, number>;
   s: S;
-}> = ({ total, pending, counts, s }) => {
+  negativeOnly: number;
+  partialNeg: number;
+}> = ({ total, pending, counts, s, negativeOnly, partialNeg }) => {
   type SegRow = { key: Sentiment; label: string; color: string; count: number };
   const segments: SegRow[] = ([
     { key: 'POSITIVE',           label: 'Позитив',  color: C.good,   count: counts.POSITIVE },
@@ -685,8 +690,11 @@ const SummaryStrip: React.FC<{
     <View style={s.rvSummary}>
       <View style={s.rvSummaryHeadRow}>
         <View style={{ flex: 1 }}>
-          <Text style={s.rvSummaryNum} numberOfLines={1} adjustsFontSizeToFit>{fmtNum(pending)}</Text>
-          <Text style={s.rvSummaryMeta}>{pending === 1 ? 'негативный отзыв без ответа' : 'негативных отзывов без ответа'}</Text>
+          <Text style={s.rvSummaryNum} numberOfLines={1} adjustsFontSizeToFit>{fmtNum(negativeOnly)}</Text>
+          <Text style={s.rvSummaryMeta}>
+            {negativeOnly === 1 ? 'негативный без ответа' : 'негативных без ответа'}
+            {partialNeg > 0 ? ` + ${partialNeg} частично` : ''}
+          </Text>
         </View>
         <Text style={s.rvSummaryLbl}>{`Всего\n${fmtNum(total)}`}</Text>
       </View>

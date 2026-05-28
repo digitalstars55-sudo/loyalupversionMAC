@@ -38,6 +38,7 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
   const [createOpen, setCreateOpen] = useState(false);
   const [createText, setCreateText] = useState('');
   const [createDraft, setCreateDraft] = useState('');
+  const [createImageUri, setCreateImageUri] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [branches, setBranches] = useState<RFBranch[]>([]);
@@ -46,6 +47,7 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
     haptic('light');
     setCreateText('');
     setCreateDraft('');
+    setCreateImageUri(null);
     setCreateOpen(true);
     fetchBranches().then(list => setBranches(list.filter(b => b.id !== 0))).catch(() => {});
   };
@@ -63,13 +65,42 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
     } finally { setAiLoading(false); }
   };
 
+  const onPickImage = async () => {
+    haptic('light');
+    let ImagePicker: any = null;
+    try { ImagePicker = require('expo-image-picker'); } catch {}
+    if (!ImagePicker) {
+      Alert.alert('Недоступно', 'Выбор изображения доступен только в нативной сборке.');
+      return;
+    }
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Доступ запрещён', 'Разрешите доступ к фото в настройках.'); return; }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions?.Images ?? 'images',
+        allowsEditing: false, quality: 0.85,
+      });
+      if (res.canceled) return;
+      const asset = res.assets?.[0];
+      if (!asset?.uri) return;
+      setCreateImageUri(asset.uri);
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.message ?? 'Не удалось выбрать файл');
+    }
+  };
+
   const onSend = async () => {
     if (!createText.trim()) { Alert.alert('Текст пустой', 'Введите или сгенерируйте текст рассылки.'); return; }
     haptic('medium');
     setSending(true);
     try {
       const branchIds = branches.map(b => b.id);
-      const res = await sendBroadcast({ message_text: createText.trim(), mode: 'restaurant', branch_ids: branchIds });
+      const res = await sendBroadcast({
+        message_text: createText.trim(),
+        mode: 'restaurant',
+        branch_ids: branchIds,
+        image_uri: createImageUri,
+      });
       haptic('success');
       Alert.alert('Рассылка запущена', `Отправлено: ${res.total_sent} получателей.`);
       setCreateOpen(false);
@@ -200,75 +231,86 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
 
       {/* Модал создания рассылки */}
       <Modal visible={createOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCreateOpen(false)}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView style={{ flex: 1, backgroundColor: C.surface }} edges={['top']}>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.surface }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
             {/* Header */}
             <View style={camp.modalHeader}>
-              <Text style={camp.modalTitle}>Новая рассылка</Text>
               <Pressable {...ripple()} onPress={() => setCreateOpen(false)} style={camp.modalClose}>
                 <X size={20} color={C.ink2} strokeWidth={2.2} />
               </Pressable>
+              <Text style={camp.modalTitle}>Новая рассылка</Text>
+              <View style={{ width: 36 }} />
             </View>
 
-            <View style={{ flex: 1, padding: 16, gap: 14 }}>
+            <View style={{ flex: 1, paddingHorizontal: 16 }}>
               {/* Подсказка для AI */}
-              <View>
-                <Text style={camp.fieldLabel}>Подсказка для AI (необязательно)</Text>
-                <TextInput
-                  style={camp.input}
-                  value={createDraft}
-                  onChangeText={setCreateDraft}
-                  placeholder="Например: скидка 20% в выходные..."
-                  placeholderTextColor={C.ink4}
-                  multiline
-                  numberOfLines={2}
-                  editable={!aiLoading && !sending}
-                />
-              </View>
+              <Text style={camp.fieldLabel}>Подсказка для AI (необязательно)</Text>
+              <TextInput
+                style={[camp.input, { marginBottom: 10 }]}
+                value={createDraft}
+                onChangeText={setCreateDraft}
+                placeholder="Например: скидка 20% в выходные..."
+                placeholderTextColor={C.ink4}
+                multiline
+                numberOfLines={2}
+                editable={!aiLoading && !sending}
+              />
 
-              {/* Кнопка AI генерации */}
-              <Pressable
-                style={[camp.aiBtn, (aiLoading || sending) && { opacity: 0.5 }]}
-                {...ripple('rgba(255,255,255,0.22)')}
-                onPress={onAiGenerate}
-                disabled={aiLoading || sending}
-              >
-                {aiLoading
-                  ? <ActivityIndicator size="small" color={C.surface} />
-                  : <Sparkles size={15} color={C.surface} strokeWidth={2.2} />
-                }
-                <Text style={camp.aiBtnText}>{aiLoading ? 'Генерирую...' : 'Сгенерировать текст AI'}</Text>
-              </Pressable>
+              {/* Кнопки инструментов */}
+              <View style={camp.toolRow}>
+                <Pressable
+                  style={[camp.toolBtn, { flex: 1 }, (aiLoading || sending) && { opacity: 0.5 }]}
+                  {...ripple('rgba(255,255,255,0.22)')}
+                  onPress={onAiGenerate}
+                  disabled={aiLoading || sending}
+                >
+                  {aiLoading
+                    ? <ActivityIndicator size="small" color={C.surface} />
+                    : <Sparkles size={15} color={C.surface} strokeWidth={2.2} />
+                  }
+                  <Text style={camp.toolBtnText}>{aiLoading ? 'Генерирую...' : 'AI-текст'}</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[camp.toolBtn, { backgroundColor: createImageUri ? C.good : C.paper, borderWidth: 1, borderColor: createImageUri ? C.good : C.line }, sending && { opacity: 0.5 }]}
+                  {...ripple()}
+                  onPress={createImageUri ? () => setCreateImageUri(null) : onPickImage}
+                  disabled={sending}
+                >
+                  <Text style={{ fontSize: 16 }}>{createImageUri ? '✓' : '🖼'}</Text>
+                  <Text style={[camp.toolBtnText, { color: createImageUri ? C.good : C.ink2 }]}>
+                    {createImageUri ? 'Картинка добавлена' : 'Добавить фото'}
+                  </Text>
+                </Pressable>
+              </View>
 
               {/* Текст рассылки */}
-              <View style={{ flex: 1 }}>
-                <Text style={camp.fieldLabel}>Текст рассылки</Text>
-                <TextInput
-                  style={[camp.input, { flex: 1, textAlignVertical: 'top' }]}
-                  value={createText}
-                  onChangeText={setCreateText}
-                  placeholder="Введите текст или используйте AI выше..."
-                  placeholderTextColor={C.ink4}
-                  multiline
-                  editable={!sending}
-                />
-                <Text style={camp.charCount}>{createText.length} / 4096</Text>
-              </View>
+              <Text style={[camp.fieldLabel, { marginTop: 14 }]}>Текст рассылки</Text>
+              <TextInput
+                style={[camp.input, { flex: 1, textAlignVertical: 'top', marginBottom: 4 }]}
+                value={createText}
+                onChangeText={setCreateText}
+                placeholder="Введите текст или используйте AI выше..."
+                placeholderTextColor={C.ink4}
+                multiline
+                editable={!sending}
+              />
+              <Text style={camp.charCount}>{createText.length} / 4096</Text>
             </View>
 
             {/* Кнопка отправки */}
-            <View style={{ padding: 16 }}>
+            <View style={camp.sendRow}>
               <Pressable
-                style={[s.btn, s.btnPrimary, (sending || !createText.trim()) && { opacity: 0.5 }]}
+                style={[camp.sendBtn, (sending || !createText.trim()) && { opacity: 0.45 }]}
                 {...ripple('rgba(255,255,255,0.22)')}
                 onPress={onSend}
                 disabled={sending || !createText.trim()}
               >
                 {sending
                   ? <ActivityIndicator size="small" color={C.surface} />
-                  : <Send size={15} color={C.surface} strokeWidth={2.2} />
+                  : <Send size={18} color={C.surface} strokeWidth={2.2} />
                 }
-                <Text style={s.btnPrimaryText}>{sending ? 'Отправляем...' : 'Отправить всем гостям'}</Text>
+                <Text style={camp.sendBtnText}>{sending ? 'Отправляем...' : 'Отправить всем гостям'}</Text>
               </Pressable>
             </View>
           </SafeAreaView>
@@ -530,26 +572,33 @@ const camp = StyleSheet.create({
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: C.line,
+    marginBottom: 16,
   },
   modalTitle: {
     flex: 1,
     fontFamily: 'Manrope_800ExtraBold',
     fontSize: 17,
     color: C.ink,
+    textAlign: 'center',
   },
   modalClose: {
-    padding: 6,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: C.paper,
   },
   fieldLabel: {
     fontFamily: 'Manrope_600SemiBold',
-    fontSize: 12,
+    fontSize: 11.5,
     color: C.ink3,
     marginBottom: 6,
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   input: {
@@ -558,24 +607,29 @@ const camp = StyleSheet.create({
     borderColor: C.line,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 11,
     fontFamily: 'Manrope_400Regular',
     fontSize: 14,
     color: C.ink,
     minHeight: 48,
   },
-  aiBtn: {
+  toolRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  toolBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 7,
     backgroundColor: C.purpleDeep,
     borderRadius: 12,
-    paddingVertical: 13,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
-  aiBtnText: {
+  toolBtnText: {
     fontFamily: 'Manrope_700Bold',
-    fontSize: 14,
+    fontSize: 13,
     color: C.surface,
   },
   charCount: {
@@ -583,6 +637,26 @@ const camp = StyleSheet.create({
     fontSize: 11,
     color: C.ink4,
     textAlign: 'right',
-    marginTop: 4,
+  },
+  sendRow: {
+    padding: 16,
+    paddingBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.line,
+  },
+  sendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: C.purple,
+    borderRadius: 16,
+    paddingVertical: 16,
+  },
+  sendBtnText: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 15,
+    color: C.surface,
+    letterSpacing: 0.2,
   },
 });

@@ -692,7 +692,7 @@ export function makeStyles(r: Resp) {
     },
     rvSummaryNum: {
       fontFamily: F.extrabold, fontSize: scale(40), color: C.warn,
-      letterSpacing: -1.4, lineHeight: scale(40),
+      letterSpacing: -1.4, lineHeight: scale(50),
     },
     rvSummaryLbl: {
       fontFamily: F.bold, fontSize: 11, color: C.ink3,
