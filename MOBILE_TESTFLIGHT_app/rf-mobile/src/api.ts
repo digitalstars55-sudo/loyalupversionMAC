@@ -615,6 +615,38 @@ export async function fetchGuestList(p?: { search?: string; limit?: number; offs
   return await res.json();
 }
 
+export interface ApiNotification {
+  id: number;
+  type: string;
+  title: string;
+  body: string;
+  data: Record<string, any>;
+  read: boolean;
+  created_at: string;
+}
+
+export async function fetchNotifications(limit = 50): Promise<{ notifications: ApiNotification[]; unread: number }> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 200));
+    return { notifications: [], unread: 0 };
+  }
+  const url = new URL('/api/v1/notifications/', getApiBase());
+  url.searchParams.set('limit', String(limit));
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  if (!res.ok) throw new Error(`Notifications fetch failed: ${res.status}`);
+  return await res.json();
+}
+
+export async function markNotificationsRead(p?: { ids?: number[]; all?: boolean }): Promise<void> {
+  if (USE_MOCK) return;
+  const res = await fetch(new URL('/api/v1/notifications/', getApiBase()).toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() },
+    body: JSON.stringify(p?.all ? { all: true } : { ids: p?.ids ?? [] }),
+  });
+  if (!res.ok) throw new Error(`Mark read failed: ${res.status}`);
+}
+
 export interface RFSegment { id: number; code: string; name: string; emoji: string; count: number; }
 
 export async function fetchSegments(): Promise<RFSegment[]> {

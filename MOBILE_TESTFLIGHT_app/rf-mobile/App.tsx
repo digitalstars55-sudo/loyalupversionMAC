@@ -42,7 +42,7 @@ import {
   type PushPayload,
 } from './src/push';
 import { NotificationsScreen, type NotificationItem, PUSH_TYPE_LABELS } from './src/screens/NotificationsScreen';
-import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
+import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, fetchNotifications, markNotificationsRead, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
 import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
 import { OfflineBanner } from './src/components/OfflineBanner';
@@ -281,32 +281,38 @@ function Root({ onLogout }: { onLogout: () => void }) {
   // Preset фильтра отзывов — когда переходим из Home по карточке (негатив/позитив/драфты)
   const [reviewsPreset, setReviewsPreset] = useState<'urgent' | 'unanswered' | 'replied' | 'drafts' | 'positive' | null>(null);
 
-  // История уведомлений — персистируется в AsyncStorage
+  // История уведомлений — источник истины БЭКЕНД (ловит и фоновые пуши).
+  // AsyncStorage используется как офлайн-кэш для мгновенного показа.
   const NOTIF_KEY = '@loyalup/push_history';
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Загружаем сохранённые уведомления при монтировании Root
-  useEffect(() => {
-    storage.getItem(NOTIF_KEY).then(raw => {
-      if (!raw) return;
-      try { setNotifications(JSON.parse(raw)); } catch {}
-    }).catch(() => {});
+  // Подтягиваем историю с сервера: маппим и кэшируем
+  const syncNotifications = useCallback(async () => {
+    try {
+      const { notifications: api, unread } = await fetchNotifications(50);
+      const mapped: NotificationItem[] = api.map(n => ({
+        id: String(n.id),
+        type: n.type as any,
+        title: n.title || PUSH_TYPE_LABELS[n.type as keyof typeof PUSH_TYPE_LABELS] || n.type,
+        body: n.body,
+        receivedAt: n.created_at,
+      }));
+      // API отдаёт по убыванию created_at; экран сам реверсит — храним по возрастанию
+      const asc = [...mapped].reverse();
+      setNotifications(asc);
+      setUnreadCount(unread);
+      storage.setItem(NOTIF_KEY, JSON.stringify(asc)).catch(() => {});
+    } catch {}
   }, []);
 
-  const addNotification = (payload: PushPayload, title: string, body: string) => {
-    const item: NotificationItem = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      type: payload.type,
-      title: title || PUSH_TYPE_LABELS[payload.type] || payload.type,
-      body,
-      receivedAt: new Date().toISOString(),
-    };
-    setNotifications(prev => {
-      const next = [...prev.slice(-49), item];
-      storage.setItem(NOTIF_KEY, JSON.stringify(next)).catch(() => {});
-      return next;
-    });
-  };
+  // При монтировании: сначала кэш (мгновенно), потом сервер (актуально)
+  useEffect(() => {
+    storage.getItem(NOTIF_KEY).then(raw => {
+      if (raw) { try { setNotifications(JSON.parse(raw)); } catch {} }
+    }).catch(() => {});
+    syncNotifications();
+  }, [syncNotifications]);
 
   // Overlay-экраны (открываются поверх любого таба)
   const [overlay, setOverlay] = useState<null | 'branch-ratings' | 'reports' | 'rf-thresholds' | 'search' | 'birthdays' | 'engagement' | 'notifications'>(null);
@@ -362,10 +368,9 @@ function Root({ onLogout }: { onLogout: () => void }) {
     registerForPushNotifications().then(token => {
       if (token) sendPushTokenToBackend(token);
     });
-    // Обработка тапа по уведомлению (из фона/трея)
-    // ВАЖНО: тоже пишем в историю — это единственный способ поймать фоновые пуши
-    const handlePushTap = (payload: PushPayload, title = '', body = '') => {
-      addNotification(payload, title, body);
+    // Тап по уведомлению (из фона/трея) → навигация + синк истории с сервера
+    const handlePushTap = (payload: PushPayload) => {
+      syncNotifications();
       switch (payload.type) {
         case 'chat_message':
           setTab('chat');
@@ -396,12 +401,10 @@ function Root({ onLogout }: { onLogout: () => void }) {
       }
     };
 
-    const sub = addPushResponseListener((payload, title, body) => handlePushTap(payload, title, body));
+    const sub = addPushResponseListener((payload) => handlePushTap(payload));
 
-    // Foreground пуш — тоже пишем в историю (без навигации — баннер уже показан)
-    const recSub = addPushReceivedListener((payload, title, body) => {
-      addNotification(payload, title, body);
-    });
+    // Foreground пуш — сервер уже залогировал, просто синкаем историю
+    const recSub = addPushReceivedListener(() => { syncNotifications(); });
 
     // Пуш по которому приложение было запущено из killed-state
     (async () => {
@@ -412,15 +415,13 @@ function Root({ onLogout }: { onLogout: () => void }) {
         const resp = await Notifications.getLastNotificationResponseAsync();
         if (resp?.notification?.request?.content?.data) {
           const data = resp.notification.request.content.data as PushPayload;
-          const title = resp.notification.request.content.title ?? '';
-          const body  = resp.notification.request.content.body ?? '';
-          if (data.type) handlePushTap(data, title, body);
+          if (data.type) handlePushTap(data);
         }
       } catch {}
     })();
 
     return () => { sub?.remove(); recSub?.remove(); };
-  }, []);
+  }, [syncNotifications]);
 
   // Overlay-экраны имеют приоритет над табами (но TabBar остаётся)
   if (overlay === 'branch-ratings') {
@@ -537,8 +538,13 @@ function Root({ onLogout }: { onLogout: () => void }) {
           onOpenBranchRatings={() => setOverlay('branch-ratings')}
           onOpenThresholds={() => setOverlay('rf-thresholds')}
           onOpenMenu={() => setTab('more')}
-          onOpenNotifications={() => setOverlay('notifications')}
-          notificationsBadge={notifications.length > 0 ? notifications.length : undefined}
+          onOpenNotifications={async () => {
+            setOverlay('notifications');
+            try { if (unreadCount > 0) await markNotificationsRead({ all: true }); } catch {}
+            setUnreadCount(0);
+            syncNotifications();
+          }}
+          notificationsBadge={unreadCount > 0 ? unreadCount : undefined}
         />
       )}
       {tab === 'reviews'   && (
