@@ -390,6 +390,7 @@ function Root({ onLogout }: { onLogout: () => void }) {
           setTab('more'); setPendingOpenMoreScreen('campaigns');
           break;
         case 'daily_code_missing':
+        case 'daily_codes':
           setTab('more'); setPendingOpenMoreScreen('daily-codes');
           break;
         case 'staff_invited':
@@ -505,7 +506,7 @@ function Root({ onLogout }: { onLogout: () => void }) {
               case 'chat_message': setTab('chat'); break;
               case 'report_ready': setOverlay('reports'); break;
               case 'broadcast_done': setTab('more'); setPendingOpenMoreScreen('campaigns'); break;
-              case 'daily_code_missing': setTab('more'); setPendingOpenMoreScreen('daily-codes'); break;
+              case 'daily_code_missing': case 'daily_codes': setTab('more'); setPendingOpenMoreScreen('daily-codes'); break;
               case 'staff_invited': setTab('more'); setPendingOpenMoreScreen('staff'); break;
               case 'guest_birthday': setOverlay('birthdays'); break;
               default: setTab('home');
@@ -531,6 +532,7 @@ function Root({ onLogout }: { onLogout: () => void }) {
           onOpenSearch={() => setOverlay('search')}
           onOpenBirthdays={() => setOverlay('birthdays')}
           onOpenEngagement={() => setOverlay('engagement')}
+          onOpenDailyCodes={() => { setTab('more'); setPendingOpenMoreScreen('daily-codes'); }}
         />
       )}
       {tab === 'analytics' && (

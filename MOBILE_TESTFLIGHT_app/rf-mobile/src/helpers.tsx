@@ -150,8 +150,10 @@ export interface BranchRatingDetail {
   stars_distribution: Record<1 | 2 | 3 | 4 | 5, number>;
   // По тональностям из ВСЕХ отзывов (включая VK)
   sentiment_breakdown: { positive: number; neutral: number; partial: number; negative: number; spam: number };
-  // Динамика к прошлому периоду (моки: -0.4..+0.6)
+  // Динамика среднего рейтинга: последние 30 дней vs 30-60 дней назад
   delta_avg_rating: number;
+  // Есть ли данные за оба периода (иначе динамику не показываем)
+  delta_available: boolean;
   // Свежие негативные комменты (топ-3 ai_comment)
   top_negatives: { id: number; ai_comment: string; rating?: number }[];
   // AI-рекомендация
@@ -182,6 +184,22 @@ export const computeBranchRatingsDetailed = (
       });
       const avg = appReviews.length ? sum / appReviews.length : 0;
 
+      // Реальная динамика: средний рейтинг за последние 30 дней vs 30-60 дней назад
+      const now = Date.now();
+      const D30 = 30 * 86_400_000;
+      const avgInWindow = (fromAgo: number, toAgo: number): number | null => {
+        const slice = appReviews.filter(rv => {
+          const ts = new Date(rv.last_message_at).getTime();
+          return ts <= now - fromAgo && ts > now - toAgo;
+        });
+        if (!slice.length) return null;
+        return slice.reduce((s, rv) => s + (rv.rating ?? 0), 0) / slice.length;
+      };
+      const curAvg = avgInWindow(0, D30);
+      const prevAvg = avgInWindow(D30, 2 * D30);
+      const hasDelta = curAvg != null && prevAvg != null;
+      const delta = hasDelta ? Math.round((curAvg! - prevAvg!) * 10) / 10 : 0;
+
       // Тональности
       const sb = { positive: 0, neutral: 0, partial: 0, negative: 0, spam: 0 };
       branchReviews.forEach(rv => {
@@ -210,9 +228,6 @@ export const computeBranchRatingsDetailed = (
         avg, count: appReviews.length, sb, replyRate, branchName: b.name,
       });
 
-      // Динамика — детерминированный псевдо-рандом по id
-      const delta = (((b.id * 17) % 11) - 5) / 10; // -0.5 .. +0.5
-
       return {
         branch_id: b.id,
         branch_name: b.name,
@@ -222,6 +237,7 @@ export const computeBranchRatingsDetailed = (
         stars_distribution: stars,
         sentiment_breakdown: sb,
         delta_avg_rating: delta,
+        delta_available: hasDelta,
         top_negatives: negs,
         ai_recommendation: ai,
         reply_rate: replyRate,

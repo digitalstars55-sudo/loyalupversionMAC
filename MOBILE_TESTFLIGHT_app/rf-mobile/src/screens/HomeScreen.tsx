@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -13,10 +13,11 @@ import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { makeStyles } from '../styles';
 import { fmtNum, computeBranchRatings, relativeTime } from '../helpers';
-import { fetchRFMatrix, fetchSubscription } from '../api';
+import { fetchRFMatrix, fetchSubscription, fetchDailyCodes } from '../api';
 import { Skeleton } from '../components/Skeleton';
 import { PaymentModal } from '../components/PaymentModal';
-import type { Review, ChatMessage, RFMatrixResponse, TabKey, SubscriptionStatus } from '../types';
+import { KeyRound } from 'lucide-react-native';
+import type { Review, ChatMessage, RFMatrixResponse, TabKey, SubscriptionStatus, DailyCode, DailyCodePurpose } from '../types';
 import type { S } from '../styles';
 
 // ════════════════════════════════════════════════════════════════════
@@ -33,25 +34,29 @@ export const HomeScreen: React.FC<{
   onOpenSearch?: () => void;
   onOpenBirthdays?: () => void;
   onOpenEngagement?: () => void;
-}> = ({ reviews, messages, onNavigate, onOpenReview, onOpenReviewsFiltered, onOpenBranchRatings, onOpenReports, onOpenSearch, onOpenBirthdays, onOpenEngagement }) => {
+  onOpenDailyCodes?: () => void;
+}> = ({ reviews, messages, onNavigate, onOpenReview, onOpenReviewsFiltered, onOpenBranchRatings, onOpenReports, onOpenSearch, onOpenBirthdays, onOpenEngagement, onOpenDailyCodes }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
   const insets = useSafeAreaInsets();
 
   const [data, setData] = useState<RFMatrixResponse | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
+  const [dailyCodes, setDailyCodes] = useState<DailyCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
 
   const load = async () => {
     try {
-      const [res, sub] = await Promise.all([
+      const [res, sub, codes] = await Promise.all([
         fetchRFMatrix({ mode: 'restaurant', trend_days: 30 }),
         fetchSubscription().catch(() => null),
+        fetchDailyCodes().catch(() => [] as DailyCode[]),
       ]);
       setData(res);
       if (sub) setSubscription(sub);
+      setDailyCodes(codes);
     } catch {} finally {
       setLoading(false);
       setRefreshing(false);
@@ -155,6 +160,9 @@ export const HomeScreen: React.FC<{
               : `Сегодня нужно разобрать ${tasksTotal} ${plural(tasksTotal, ['задачу', 'задачи', 'задач'])}. Ниже — что важнее всего.`}
           </Text>
         </View>
+
+        {/* Коды дня — сразу под приветствием */}
+        <DailyCodesCard codes={dailyCodes} loading={loading} s={s} onOpen={() => { haptic('light'); onOpenDailyCodes?.(); }} />
 
         {/* Платёжное напоминание */}
         {(showPaymentReminder || isOverdue) && subscription && (
@@ -464,6 +472,107 @@ export const HomeScreen: React.FC<{
     </SafeAreaView>
   );
 };
+
+// ─────────────────────────────────────────────
+// КОДЫ ДНЯ — карточка на главной (сегодняшние коды по точкам)
+const CODE_META: Record<DailyCodePurpose, { label: string; emoji: string; color: string; bg: string }> = {
+  BIRTHDAY:   { label: 'ДР',    emoji: '🎂', color: C.purpleDeep, bg: C.purpleSoft },
+  SUPERPRIZE: { label: 'Игра',  emoji: '🎁', color: C.limeDeep,   bg: C.limeSoft },
+  OTHER:      { label: 'Квест', emoji: '🗺',  color: C.ink2,       bg: C.lineSoft },
+};
+
+const DailyCodesCard: React.FC<{
+  codes: DailyCode[];
+  loading: boolean;
+  s: S;
+  onOpen: () => void;
+}> = ({ codes, loading, s, onOpen }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayCodes = codes.filter(c => c.valid_date === today);
+
+  // Группируем по точке
+  const byBranch = new Map<number, { name: string; items: DailyCode[] }>();
+  todayCodes.forEach(c => {
+    const g = byBranch.get(c.branch_id) ?? { name: c.branch_name || `Точка #${c.branch_id}`, items: [] };
+    g.items.push(c);
+    byBranch.set(c.branch_id, g);
+  });
+  const branches = Array.from(byBranch.values());
+
+  return (
+    <Pressable style={dc.card} {...ripple('rgba(255,255,255,0.10)')} onPress={onOpen}>
+      <View style={dc.head}>
+        <View style={dc.headIcon}>
+          <KeyRound size={16} color={C.surface} strokeWidth={2.4} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={dc.title}>Коды дня · сегодня</Text>
+          <Text style={dc.sub}>Назовите гостю при активации приза</Text>
+        </View>
+        <ChevronRight size={18} color="rgba(255,255,255,0.7)" strokeWidth={2.2} />
+      </View>
+
+      {loading ? (
+        <Text style={dc.empty}>Загружаем коды…</Text>
+      ) : branches.length === 0 ? (
+        <Text style={dc.empty}>На сегодня кодов ещё нет — нажмите, чтобы сгенерировать.</Text>
+      ) : (
+        <View style={{ gap: 8 }}>
+          {branches.slice(0, 3).map((b, i) => (
+            <View key={i} style={dc.branchRow}>
+              <Text style={dc.branchName} numberOfLines={1}>{b.name}</Text>
+              <View style={dc.codePills}>
+                {b.items.map(c => {
+                  const m = CODE_META[c.purpose];
+                  return (
+                    <View key={c.id} style={[dc.pill, { backgroundColor: m.bg }]}>
+                      <Text style={[dc.pillLabel, { color: m.color }]}>{m.emoji} {m.label}</Text>
+                      <Text style={[dc.pillCode, { color: m.color }]}>{c.code}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+          {branches.length > 3 && (
+            <Text style={dc.more}>+ ещё {branches.length - 3} {plural(branches.length - 3, ['точка', 'точки', 'точек'])}</Text>
+          )}
+        </View>
+      )}
+    </Pressable>
+  );
+};
+
+const dc = StyleSheet.create({
+  card: {
+    marginHorizontal: 20, marginBottom: 16,
+    backgroundColor: C.purpleDeep, borderRadius: 18, padding: 16,
+    shadowColor: C.purple, shadowOpacity: 0.35, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 }, elevation: 6,
+  },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  headIcon: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  title: { fontFamily: 'Manrope_800ExtraBold', fontSize: 15, color: C.surface, letterSpacing: -0.3 },
+  sub: { fontFamily: 'Manrope_500Medium', fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 },
+  empty: { fontFamily: 'Manrope_500Medium', fontSize: 12.5, color: 'rgba(255,255,255,0.85)', lineHeight: 18 },
+  branchRow: {
+    backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 10, gap: 8,
+  },
+  branchName: { fontFamily: 'Manrope_700Bold', fontSize: 12.5, color: C.surface },
+  codePills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  pill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 9, paddingVertical: 5, borderRadius: 50,
+  },
+  pillLabel: { fontFamily: 'Manrope_700Bold', fontSize: 10.5 },
+  pillCode: { fontFamily: 'Manrope_800ExtraBold', fontSize: 13, letterSpacing: 1 },
+  more: { fontFamily: 'Manrope_600SemiBold', fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 2 },
+});
 
 // ─────────────────────────────────────────────
 const TaskRow: React.FC<{

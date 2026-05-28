@@ -153,7 +153,7 @@ export function makeStyles(r: Resp) {
       fontFamily: F.bold, fontSize: 10, color: C.ink3,
       letterSpacing: 2, textTransform: 'uppercase', marginTop: 6,
     },
-    kpiVal: { fontFamily: F.extrabold, fontSize: scale(32), lineHeight: scale(40), marginTop: 8, letterSpacing: -1 },
+    kpiVal: { fontFamily: F.extrabold, fontSize: scale(30), lineHeight: scale(44), marginTop: 6, letterSpacing: -1, includeFontPadding: false },
     kpiSub: { fontFamily: F.medium, fontSize: 11, color: C.ink3, marginTop: 5, lineHeight: 15 },
 
     secHead: {

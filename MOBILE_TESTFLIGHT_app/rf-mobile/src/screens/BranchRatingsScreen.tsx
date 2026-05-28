@@ -170,25 +170,28 @@ const BranchCard: React.FC<{
         </View>
       </View>
 
-      {/* Динамика */}
-      <View style={[s.feedRow, { borderBottomWidth: 1, borderBottomColor: C.lineSoft, paddingHorizontal: 0 }]}>
-        <View style={[s.feedIcon, { backgroundColor: detail.delta_avg_rating >= 0 ? C.goodSoft : C.warnSoft }]}>
-          {detail.delta_avg_rating >= 0
-            ? <TrendingUp size={14} color={C.good} strokeWidth={2.4} />
-            : <TrendingDown size={14} color={C.warn} strokeWidth={2.4} />
-          }
+      {/* Динамика — только если есть данные за оба периода */}
+      {detail.delta_available && (
+        <View style={[s.feedRow, { borderBottomWidth: 1, borderBottomColor: C.lineSoft, paddingHorizontal: 0 }]}>
+          <View style={[s.feedIcon, { backgroundColor: detail.delta_avg_rating >= 0 ? C.goodSoft : C.warnSoft }]}>
+            {detail.delta_avg_rating >= 0
+              ? <TrendingUp size={14} color={C.good} strokeWidth={2.4} />
+              : <TrendingDown size={14} color={C.warn} strokeWidth={2.4} />
+            }
+          </View>
+          <View style={s.feedText}>
+            <Text style={s.feedTitle}>
+              {detail.delta_avg_rating >= 0 ? '+' : ''}{detail.delta_avg_rating.toFixed(1)} к прошлому месяцу
+            </Text>
+            <Text style={s.feedSub}>
+              {detail.delta_avg_rating >= 0.2 ? 'Уверенный рост' :
+               detail.delta_avg_rating > 0    ? 'Лёгкий рост' :
+               detail.delta_avg_rating === 0  ? 'Без изменений' :
+               detail.delta_avg_rating >= -0.2 ? 'Незначительное снижение' : 'Падение — нужны действия'}
+            </Text>
+          </View>
         </View>
-        <View style={s.feedText}>
-          <Text style={s.feedTitle}>
-            {detail.delta_avg_rating >= 0 ? '+' : ''}{detail.delta_avg_rating.toFixed(1)} к прошлому периоду
-          </Text>
-          <Text style={s.feedSub}>
-            {detail.delta_avg_rating >= 0.2 ? 'Уверенный рост' :
-             detail.delta_avg_rating >= 0   ? 'Стабильно' :
-             detail.delta_avg_rating >= -0.2 ? 'Незначительное снижение' : 'Падение — нужны действия'}
-          </Text>
-        </View>
-      </View>
+      )}
 
       {/* Распределение по звёздам */}
       <View style={{ paddingTop: 12 }}>

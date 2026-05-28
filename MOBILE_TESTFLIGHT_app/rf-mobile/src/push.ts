@@ -22,6 +22,7 @@ export type PushType =
   | 'staff_invited'      // приглашённый сотрудник принял
   | 'broadcast_done'     // рассылка отправлена
   | 'daily_code_missing' // код дня не сгенерирован
+  | 'daily_codes'        // утренняя сводка кодов дня
   | 'guest_birthday';    // у постоянного гостя завтра ДР
 
 export interface PushPayload {

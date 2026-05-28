@@ -29,6 +29,7 @@ const TYPE_META: Record<PushType, { icon: React.ReactNode; color: string; bg: st
   broadcast_done:     { icon: <Megaphone size={18} strokeWidth={2} />,   color: C.purpleDeep, bg: C.purpleSoft },
   staff_invited:      { icon: <UserCheck size={18} strokeWidth={2} />,   color: C.good,       bg: C.goodSoft },
   daily_code_missing: { icon: <KeyRound size={18} strokeWidth={2} />,    color: C.warn,       bg: C.warnSoft },
+  daily_codes:        { icon: <KeyRound size={18} strokeWidth={2} />,    color: C.purpleDeep, bg: C.purpleSoft },
   guest_birthday:     { icon: <Cake size={18} strokeWidth={2} />,        color: C.limeDeep,   bg: C.limeSoft },
 };
 
@@ -111,6 +112,7 @@ export const PUSH_TYPE_LABELS: Record<PushType, string> = {
   broadcast_done:     'Рассылка завершена',
   staff_invited:      'Сотрудник присоединился',
   daily_code_missing: 'Код дня не сгенерирован',
+  daily_codes:        'Коды дня обновлены',
   guest_birthday:     'День рождения гостя',
 };
 
