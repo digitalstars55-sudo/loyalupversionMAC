@@ -281,7 +281,7 @@ function Root({ onLogout }: { onLogout: () => void }) {
   const reviewsBadge = useMemo(
     () => reviews.filter(rev =>
       !rev.is_replied &&
-      (rev.sentiment === 'NEGATIVE' || rev.sentiment === 'PARTIALLY_NEGATIVE')
+      rev.sentiment === 'NEGATIVE'
     ).length,
     [reviews],
   );

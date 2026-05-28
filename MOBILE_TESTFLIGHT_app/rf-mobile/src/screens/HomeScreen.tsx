@@ -73,7 +73,7 @@ export const HomeScreen: React.FC<{
   // ── Считаем задачи дня ──
   const negPending = useMemo(
     () => reviews.filter(rev =>
-      (rev.sentiment === 'NEGATIVE' || rev.sentiment === 'PARTIALLY_NEGATIVE') &&
+      rev.sentiment === 'NEGATIVE' &&
       !rev.is_replied
     ),
     [reviews]
