@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Search, X, Users, ChevronRight, AlertTriangle, RefreshCw } from 'lucide-react-native';
+import { ChevronLeft, Search, X, Users, ChevronRight, AlertTriangle, RefreshCw, ArrowUpDown } from 'lucide-react-native';
 
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
@@ -21,6 +21,7 @@ import type { S } from '../styles';
 // GUESTS SCREEN — полная база гостей с поиском и фильтрами
 // ════════════════════════════════════════════════════════════════════
 type RFilter = 'all' | 'fresh' | 'warm' | 'cold' | 'lost';
+type SortKey = 'last_visit' | 'name' | 'frequency' | 'registered';
 
 export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: string | null }> = ({ onBack, initialGuestVkId }) => {
   const r = useResponsive();
@@ -35,6 +36,8 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
 
   const [loadError, setLoadError] = useState(false);
   const [totalVisits, setTotalVisits] = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey>('last_visit');
+  const [sortOpen, setSortOpen] = useState(false);
 
   const load = async () => {
     setLoadError(false);
@@ -50,30 +53,49 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
 
   const onRefresh = () => { haptic('light'); setRefreshing(true); load(); };
 
+  // Фильтрация — recency_days > 0 у реальных посетителей; 0 = нет визитов (новые/без данных)
+  const passFilter = (g: Guest) => {
+    if (rFilter === 'all')   return true;
+    if (rFilter === 'fresh') return g.recency_days > 0 && g.recency_days <= 14;
+    if (rFilter === 'warm')  return g.recency_days > 14 && g.recency_days <= 30;
+    if (rFilter === 'cold')  return g.recency_days > 30 && g.recency_days <= 60;
+    if (rFilter === 'lost')  return g.recency_days > 60;
+    return true;
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return items.filter(g => {
+    let list = items.filter(g => {
       const fullname = `${g.first_name} ${g.last_name}`.toLowerCase();
-      const matchSearch = !q ||
-        fullname.includes(q) ||
-        g.vk_id.includes(q);
-      if (!matchSearch) return false;
-
-      if (rFilter === 'all') return true;
-      if (rFilter === 'fresh') return g.recency_days <= 14;
-      if (rFilter === 'warm')  return g.recency_days > 14 && g.recency_days <= 30;
-      if (rFilter === 'cold')  return g.recency_days > 30 && g.recency_days <= 60;
-      if (rFilter === 'lost')  return g.recency_days > 60;
-      return true;
+      if (q && !fullname.includes(q) && !g.vk_id.includes(q)) return false;
+      return passFilter(g);
     });
-  }, [items, search, rFilter]);
+    // Сортировка
+    if (sortKey === 'last_visit') {
+      // Гости с визитами — по возрастанию recency (недавние первые); без визитов — в конец
+      list = [...list].sort((a, b) => {
+        if (a.recency_days === 0 && b.recency_days === 0) return 0;
+        if (a.recency_days === 0) return 1;
+        if (b.recency_days === 0) return -1;
+        return a.recency_days - b.recency_days;
+      });
+    } else if (sortKey === 'frequency') {
+      list = [...list].sort((a, b) => b.frequency - a.frequency);
+    } else if (sortKey === 'name') {
+      list = [...list].sort((a, b) =>
+        `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, 'ru')
+      );
+    }
+    // 'registered' — оставляем серверный порядок (по last_name, first_name)
+    return list;
+  }, [items, search, rFilter, sortKey]);
 
   const counts = useMemo(() => ({
-    all: items.length,
-    fresh: items.filter(g => g.recency_days <= 14).length,
-    warm: items.filter(g => g.recency_days > 14 && g.recency_days <= 30).length,
-    cold: items.filter(g => g.recency_days > 30 && g.recency_days <= 60).length,
-    lost: items.filter(g => g.recency_days > 60).length,
+    all:   items.length,
+    fresh: items.filter(g => g.recency_days > 0 && g.recency_days <= 14).length,
+    warm:  items.filter(g => g.recency_days > 14 && g.recency_days <= 30).length,
+    cold:  items.filter(g => g.recency_days > 30 && g.recency_days <= 60).length,
+    lost:  items.filter(g => g.recency_days > 60).length,
   }), [items]);
 
   // Sub-screen — карточка гостя
@@ -98,7 +120,36 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
           <Text style={s.screenTitleSuper}>База ЛоялUP</Text>
           <Text style={s.screenTitleMain}>Гости</Text>
         </View>
+        <Pressable
+          style={[s.backBtn, sortKey !== 'last_visit' && { backgroundColor: C.purpleSoft, borderColor: C.purpleLine }]}
+          {...ripple()} onPress={() => setSortOpen(o => !o)}
+        >
+          <ArrowUpDown size={18} color={sortKey !== 'last_visit' ? C.purpleDeep : C.ink} strokeWidth={2.2} />
+        </Pressable>
       </View>
+
+      {/* Шторка сортировки */}
+      {sortOpen && (
+        <View style={{ backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.line, paddingVertical: 8 }}>
+          {([
+            { key: 'last_visit', label: '🕐 По последнему визиту' },
+            { key: 'frequency',  label: '📊 По числу визитов' },
+            { key: 'name',       label: '🔤 По алфавиту' },
+            { key: 'registered', label: '📅 По алфавиту (сервер)' },
+          ] as const).map(opt => (
+            <Pressable
+              key={opt.key}
+              style={{ paddingHorizontal: 20, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+              {...ripple()} onPress={() => { haptic('light'); setSortKey(opt.key); setSortOpen(false); }}
+            >
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sortKey === opt.key ? C.purple : 'transparent' }} />
+              <Text style={{ fontFamily: sortKey === opt.key ? 'Manrope_700Bold' : 'Manrope_400Regular', fontSize: 14, color: sortKey === opt.key ? C.purple : C.ink }}>
+                {opt.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
 
       <View style={s.searchWrap}>
         <Search size={16} color={C.ink4} strokeWidth={2} />
