@@ -1082,7 +1082,9 @@ export async function fetchSubscription(): Promise<SubscriptionStatus> {
   return await res.json();
 }
 
-export async function startPayment(p: { plan: string; bank: string }): Promise<{ payment_url: string }> {
+export async function startPayment(
+  p: { plan: string; bank: string },
+): Promise<{ payment_url: string; status?: string; message?: string }> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 500));
     return { payment_url: `https://pay.example.ru/${p.bank}?plan=${p.plan}` };

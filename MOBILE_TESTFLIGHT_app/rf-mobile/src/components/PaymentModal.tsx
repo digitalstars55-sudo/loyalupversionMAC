@@ -36,7 +36,18 @@ export const PaymentModal: React.FC<{
     haptic('medium');
     setPaying(bankKey);
     try {
-      const { payment_url } = await startPayment({ plan: subscription.plan, bank: bankKey });
+      const { payment_url, status, message } = await startPayment({ plan: subscription.plan, bank: bankKey });
+      // Онлайн-эквайринг пока не подключён: бэк отдаёт status='manager_request'
+      // и пустой payment_url — заявка ушла менеджеру через support-чат.
+      if (status === 'manager_request' || !payment_url) {
+        haptic('success');
+        Alert.alert(
+          'Заявка отправлена',
+          message || `Заявка на оплату ${fmtNum(subscription.price_rub)} ₽ принята. Менеджер LoyalUP свяжется с вами в чате для выставления счёта.`,
+          [{ text: 'OK', onPress: () => { onClose(); } }],
+        );
+        return;
+      }
       // На реальном бэке вернёт URL платёжной формы. На моке — фейковый URL.
       if (Platform.OS === 'web') {
         window.open(payment_url, '_blank');
@@ -45,7 +56,6 @@ export const PaymentModal: React.FC<{
         if (ok) await Linking.openURL(payment_url);
       }
       haptic('success');
-      // Демо-режим: сразу показываем успех
       Alert.alert(
         'Открыли оплату',
         `Платёж на ${fmtNum(subscription.price_rub)} ₽ через ${bankName} запущен. После завершения оплаты статус обновится автоматически.`,
@@ -78,7 +88,7 @@ export const PaymentModal: React.FC<{
           <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 20 }}>
             <View style={[s.modalHint, { marginBottom: 14 }]}>
               <Text style={s.modalHintText}>
-                Выберите банк или способ — откроется онлайн-форма платежа. После оплаты доступ автоматически продлится на месяц.
+                Выберите удобный способ оплаты — мы передадим заявку менеджеру LoyalUP, он выставит счёт и подтвердит продление в чате.
               </Text>
             </View>
 

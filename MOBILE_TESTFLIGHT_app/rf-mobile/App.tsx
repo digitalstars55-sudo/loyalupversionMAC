@@ -298,23 +298,21 @@ function Root({ onLogout }: { onLogout: () => void }) {
     return unsub;
   }, []);
 
-  // ── Загружаем реальные отзывы один раз при старте Root, чтобы badge на табе
-  //    показывал реальное число, а не значение из MOCK_REVIEWS.
-  // Грузим реальные отзывы/настройки ТОЛЬКО после готовности авторизации:
-  // bootstrap восстановил токен+tenant_domain (setApiBase), либо прошёл
-  // логин. Эффект перезапускается при изменении token → свежий логин тоже
-  // подтянет реальные данные. Раньше deps были [] и fetch гонялся с
-  // async-bootstrap → уходил без авторизации на public-домен → падал →
-  // reviews навсегда оставались MOCK_REVIEWS (ретрая не было).
+  // ── Загружаем реальные отзывы/настройки один раз при монтировании Root,
+  //    чтобы badge на табе показывал реальное число, а не MOCK_REVIEWS.
+  // Root монтируется только после готовности авторизации (App рендерит его
+  // лишь когда token есть, а setAuthToken+setApiBase уже вызваны в bootstrap/
+  // onAuthorized), поэтому к этому моменту API_BASE и токен уже настроены —
+  // отдельная проверка bootstrapping/token здесь не нужна (этих переменных
+  // нет в скоупе Root).
   useEffect(() => {
-    if (bootstrapping || !token) return;
     fetchReviews({}).then(list => {
       if (list) setReviews(list);
     }).catch(() => {});
     fetchAutoReplySettings().then(s => {
       if (s) setAutoReplySettings(s);
     }).catch(() => {});
-  }, [bootstrapping, token]);
+  }, []);
 
   // ── Push: установка handler'ов + регистрация + слушатель тапа ──
   useEffect(() => {
