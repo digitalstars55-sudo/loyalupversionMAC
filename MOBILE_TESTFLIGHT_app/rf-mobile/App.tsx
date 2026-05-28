@@ -41,7 +41,7 @@ import {
   addPushReceivedListener, sendPushTokenToBackend,
   type PushPayload,
 } from './src/push';
-import { NotificationsScreen, type NotificationItem } from './src/screens/NotificationsScreen';
+import { NotificationsScreen, type NotificationItem, PUSH_TYPE_LABELS } from './src/screens/NotificationsScreen';
 import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
 import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
@@ -281,17 +281,31 @@ function Root({ onLogout }: { onLogout: () => void }) {
   // Preset фильтра отзывов — когда переходим из Home по карточке (негатив/позитив/драфты)
   const [reviewsPreset, setReviewsPreset] = useState<'urgent' | 'unanswered' | 'replied' | 'drafts' | 'positive' | null>(null);
 
-  // История входящих уведомлений (max 50)
+  // История уведомлений — персистируется в AsyncStorage
+  const NOTIF_KEY = '@loyalup/push_history';
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  // Загружаем сохранённые уведомления при монтировании Root
+  useEffect(() => {
+    storage.getItem(NOTIF_KEY).then(raw => {
+      if (!raw) return;
+      try { setNotifications(JSON.parse(raw)); } catch {}
+    }).catch(() => {});
+  }, []);
+
   const addNotification = (payload: PushPayload, title: string, body: string) => {
     const item: NotificationItem = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       type: payload.type,
-      title,
+      title: title || PUSH_TYPE_LABELS[payload.type] || payload.type,
       body,
       receivedAt: new Date().toISOString(),
     };
-    setNotifications(prev => [...prev.slice(-49), item]);
+    setNotifications(prev => {
+      const next = [...prev.slice(-49), item];
+      storage.setItem(NOTIF_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
   };
 
   // Overlay-экраны (открываются поверх любого таба)
@@ -348,7 +362,10 @@ function Root({ onLogout }: { onLogout: () => void }) {
     registerForPushNotifications().then(token => {
       if (token) sendPushTokenToBackend(token);
     });
-    const sub = addPushResponseListener((payload) => {
+    // Обработка тапа по уведомлению (из фона/трея)
+    // ВАЖНО: тоже пишем в историю — это единственный способ поймать фоновые пуши
+    const handlePushTap = (payload: PushPayload, title = '', body = '') => {
+      addNotification(payload, title, body);
       switch (payload.type) {
         case 'chat_message':
           setTab('chat');
@@ -377,11 +394,31 @@ function Root({ onLogout }: { onLogout: () => void }) {
           setOverlay('birthdays');
           break;
       }
-    });
-    // Listener для входящих пушей (foreground) — пишем в историю
+    };
+
+    const sub = addPushResponseListener((payload, title, body) => handlePushTap(payload, title, body));
+
+    // Foreground пуш — тоже пишем в историю (без навигации — баннер уже показан)
     const recSub = addPushReceivedListener((payload, title, body) => {
       addNotification(payload, title, body);
     });
+
+    // Пуш по которому приложение было запущено из killed-state
+    (async () => {
+      try {
+        let Notifications: any = null;
+        try { Notifications = require('expo-notifications'); } catch {}
+        if (!Notifications) return;
+        const resp = await Notifications.getLastNotificationResponseAsync();
+        if (resp?.notification?.request?.content?.data) {
+          const data = resp.notification.request.content.data as PushPayload;
+          const title = resp.notification.request.content.title ?? '';
+          const body  = resp.notification.request.content.body ?? '';
+          if (data.type) handlePushTap(data, title, body);
+        }
+      } catch {}
+    })();
+
     return () => { sub?.remove(); recSub?.remove(); };
   }, []);
 

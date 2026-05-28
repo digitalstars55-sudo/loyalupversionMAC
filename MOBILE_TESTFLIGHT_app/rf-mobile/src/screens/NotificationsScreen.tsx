@@ -102,17 +102,18 @@ export const NotificationsScreen: React.FC<{
   );
 };
 
+export const PUSH_TYPE_LABELS: Record<PushType, string> = {
+  review_new:         'Новый отзыв',
+  draft_ready:        'AI-черновик готов',
+  chat_message:       'Сообщение от менеджера',
+  payment_due:        'Напоминание об оплате',
+  report_ready:       'Отчёт готов',
+  broadcast_done:     'Рассылка завершена',
+  staff_invited:      'Сотрудник присоединился',
+  daily_code_missing: 'Код дня не сгенерирован',
+  guest_birthday:     'День рождения гостя',
+};
+
 function typeLabel(type: PushType): string {
-  const labels: Record<PushType, string> = {
-    review_new:         'Новый отзыв',
-    draft_ready:        'AI-черновик готов',
-    chat_message:       'Сообщение от менеджера',
-    payment_due:        'Напоминание об оплате',
-    report_ready:       'Отчёт готов',
-    broadcast_done:     'Рассылка завершена',
-    staff_invited:      'Сотрудник присоединился',
-    daily_code_missing: 'Код дня не сгенерирован',
-    guest_birthday:     'День рождения гостя',
-  };
-  return labels[type] ?? type;
+  return PUSH_TYPE_LABELS[type] ?? type;
 }

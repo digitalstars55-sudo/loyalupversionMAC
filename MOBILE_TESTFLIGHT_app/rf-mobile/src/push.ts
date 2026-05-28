@@ -107,17 +107,19 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
   }
 };
 
-// Подписка на тап по уведомлению (когда юзер тапнул — приложение открылось/восстановилось).
-// handler получает payload и сам решает, куда перейти.
+// Подписка на тап по уведомлению (из фона или трея).
+// handler получает payload + title/body для записи в историю.
 export const addPushResponseListener = (
-  handler: (payload: PushPayload) => void,
+  handler: (payload: PushPayload, title: string, body: string) => void,
 ): { remove: () => void } | null => {
   if (!Notifications) return null;
   try {
     const sub = Notifications.addNotificationResponseReceivedListener((res: any) => {
-      const data = res?.notification?.request?.content?.data ?? {};
+      const data  = res?.notification?.request?.content?.data ?? {};
+      const title = res?.notification?.request?.content?.title ?? '';
+      const body  = res?.notification?.request?.content?.body ?? '';
       if (data && typeof data === 'object' && 'type' in data) {
-        handler(data as PushPayload);
+        handler(data as PushPayload, title, body);
       }
     });
     return { remove: () => sub.remove() };
