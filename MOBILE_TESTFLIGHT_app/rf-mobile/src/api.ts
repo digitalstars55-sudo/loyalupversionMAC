@@ -549,7 +549,9 @@ function _normalizeRFResponse(raw: any): RFMatrixResponse {
       f_levels: raw?.matrix?.f_levels ?? [],
       cells,
     },
-    summary: raw?.summary ?? { total, active_r3, at_risk_r1, lost_r0 },
+    // Бэк отдаёт summary с ключами {vip_f3, at_risk}, а мобайл ждёт
+    // {active_r3, at_risk_r1}. Считаем из перемапированных cells сами.
+    summary: { total, active_r3, at_risk_r1, lost_r0 },
     migrations: raw?.migrations ?? [],
     branches:   raw?.branches ?? [],
     updated_at: raw?.updated_at ?? new Date().toISOString(),
@@ -892,11 +894,19 @@ export async function fetchGeneralStats(p: {
     url.searchParams.set('start', p.start_date);
     url.searchParams.set('end',   p.end_date);
   } else if (p.period_days) {
-    url.searchParams.set('period', String(p.period_days));
+    // Бэк ждёт period как enum (today|7d|30d|...) ЛИБО start/end. period_days —
+    // произвольное число дней, поэтому передаём диапазон дат (иначе period=30 → 400).
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - (p.period_days - 1));
+    url.searchParams.set('start', start.toISOString().slice(0, 10));
+    url.searchParams.set('end',   end.toISOString().slice(0, 10));
   }
   const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Stats fetch failed: ${res.status}`);
-  return await res.json();
+  // Бэк отдаёт { stats, charts, meta }; экранам нужен плоский GeneralStats.
+  const j = await res.json();
+  return (j && j.stats) ? j.stats : j;
 }
 
 export async function fetchLoyaltyReport(p: {
