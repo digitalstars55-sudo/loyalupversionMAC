@@ -38,7 +38,7 @@ export const GuestsScreen: React.FC<{ onBack: () => void; initialGuestVkId?: str
   const load = async () => {
     setLoadError(false);
     try {
-      const res = await fetchGuestList({ limit: 500 });
+      const res = await fetchGuestList({ limit: 10000 });
       setItems(res.guests);
     } catch { setItems([]); setLoadError(true); }
     finally { setLoading(false); setRefreshing(false); }
