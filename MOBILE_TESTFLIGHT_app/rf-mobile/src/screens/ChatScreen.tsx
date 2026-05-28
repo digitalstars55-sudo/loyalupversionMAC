@@ -49,10 +49,9 @@ export const ChatScreen: React.FC<{
 }> = ({ messages, setMessages }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
-  // tabbar: position absolute, bottom:24 от экрана (не safe area).
-  // height = tab minHeight + tabbar paddingTop(8) + paddingBottom(8)
-  const tabBarH = (r.isTablet ? 110 : r.isTiny ? 78 : r.isSmall ? 84 : 92) + 16;
-  const chatMarginBottom = 24 + tabBarH + 8;
+  // r.fabBottom = проектный «верх TabBar от низа экрана» (92 на обычном, 100 на планшете).
+  // Добавляем 4px чтобы ввод не касался таббара вплотную.
+  const chatMarginBottom = r.fabBottom + 4;
 
   const [manager, setManager] = useState<ChatManager | null>(null);
   const [text, setText] = useState('');
