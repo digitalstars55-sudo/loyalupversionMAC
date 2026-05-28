@@ -12,6 +12,7 @@ import { fetchCampaigns } from '../api';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
 import type { Campaign, CampaignStatus, CampaignVariant, GenderFilter } from '../types';
+import { Info } from 'lucide-react-native';
 import type { S } from '../styles';
 
 // ════════════════════════════════════════════════════════════════════
@@ -76,6 +77,17 @@ export const CampaignsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =>
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         ListHeaderComponent={
           <View>
+            {/* Пояснение */}
+            <View style={[s.modalHint, { marginHorizontal: 0, marginBottom: 14 }]}>
+              <View style={s.modalHintHeader}>
+                <Info size={12} color={C.hintInk} strokeWidth={2.4} />
+                <Text style={s.modalHintTitle}>История рассылок</Text>
+              </View>
+              <Text style={s.modalHintText}>
+                Здесь отображается история отправленных рассылок. Чтобы создать новую — перейдите во вкладку «Аналитика», выберите RF-сегмент и нажмите «Рассылка».
+              </Text>
+            </View>
+
             {/* Summary */}
             {!loading && items.length > 0 && (
               <View style={[s.tasksCard, { marginHorizontal: 0, marginBottom: 14 }]}>

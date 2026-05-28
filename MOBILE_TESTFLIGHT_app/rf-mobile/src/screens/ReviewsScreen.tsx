@@ -678,6 +678,7 @@ const SummaryStrip: React.FC<{
     { key: 'PARTIALLY_NEGATIVE', label: 'Частично', color: C.watch,  count: counts.PARTIALLY_NEGATIVE },
     { key: 'NEGATIVE',           label: 'Негатив',  color: C.warn,   count: counts.NEGATIVE },
     { key: 'PENDING',            label: 'В работе', color: C.purple, count: counts.PENDING },
+    { key: 'SPAM',               label: 'Спам',     color: C.ink4,   count: counts.SPAM },
   ] as SegRow[]).filter(seg => seg.count > 0);
 
   return (

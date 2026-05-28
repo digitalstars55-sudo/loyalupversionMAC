@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, Pressable, ScrollView, RefreshControl, ActivityIndicator, Alert,
+  View, Text, Pressable, ScrollView, RefreshControl, ActivityIndicator, Alert, StyleSheet,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,13 +12,20 @@ import { haptic, ripple } from '../platform';
 import { fetchDailyCodes, fetchBranches, generateDailyCode } from '../api';
 import { makeStyles } from '../styles';
 import { Skeleton } from '../components/Skeleton';
-import type { DailyCode, RFBranch } from '../types';
+import type { DailyCode, DailyCodePurpose, RFBranch } from '../types';
 import type { S } from '../styles';
 
 // ════════════════════════════════════════════════════════════════════
-// DAILY CODES SCREEN — read-only сегодня, emergency-кнопка если нет, история
+// DAILY CODES SCREEN — все коды дня (ДР / Игра / Квест) по каждой точке
 // ════════════════════════════════════════════════════════════════════
 const TODAY = new Date().toISOString().slice(0, 10);
+
+const PURPOSES: DailyCodePurpose[] = ['BIRTHDAY', 'SUPERPRIZE', 'OTHER'];
+const PURPOSE_LABELS: Record<DailyCodePurpose, string> = {
+  BIRTHDAY:   'День рождения',
+  SUPERPRIZE: 'Игра / Суперприз',
+  OTHER:      'Квест',
+};
 
 export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const r = useResponsive();
@@ -28,7 +35,8 @@ export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
   const [branches, setBranches] = useState<RFBranch[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [generating, setGenerating] = useState<number | null>(null);   // branch_id
+  // ключ = `${branch_id}_${purpose}`
+  const [generating, setGenerating] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -39,18 +47,19 @@ export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
   useEffect(() => { load(); }, []);
   const onRefresh = () => { haptic('light'); setRefreshing(true); load(); };
 
-  const onGenerate = (branchId: number, branchName: string) => {
+  const onGenerate = (branchId: number, branchName: string, purpose: DailyCodePurpose) => {
+    const genKey = `${branchId}_${purpose}`;
     haptic('warning');
     Alert.alert(
       'Сгенерировать код?',
-      `На сегодня для «${branchName}» нет авто-сгенерированного кода. Создать вручную?\n\nИспользуйте только если автогенерация не сработала — обычно код приходит автоматически в полночь.`,
+      `«${branchName}» — ${PURPOSE_LABELS[purpose]}.\n\nИспользуйте только если автогенерация не сработала — коды приходят автоматически в полночь.`,
       [
         { text: 'Отмена', style: 'cancel' },
         {
           text: 'Сгенерировать', onPress: async () => {
-            setGenerating(branchId);
+            setGenerating(genKey);
             try {
-              const newCode = await generateDailyCode({ branch_id: branchId, purpose: 'BIRTHDAY' });
+              const newCode = await generateDailyCode({ branch_id: branchId, purpose });
               setCodes(prev => [newCode, ...prev]);
               haptic('success');
             } catch (e: any) {
@@ -69,9 +78,17 @@ export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
     .sort((a, b) => b.valid_date.localeCompare(a.valid_date) || b.created_at.localeCompare(a.created_at));
 
   const branchesActive = branches.filter(b => b.id !== 0);
-  // Группируем код для каждой точки на сегодня
-  const todayByBranch = new Map<number, DailyCode>();
-  todayCodes.forEach(c => { if (!todayByBranch.has(c.branch_id)) todayByBranch.set(c.branch_id, c); });
+
+  // Группируем ВСЕ коды сегодня по ключу `${branch_id}_${purpose}`
+  const todayByKey = new Map<string, DailyCode>();
+  todayCodes.forEach(c => {
+    const key = `${c.branch_id}_${c.purpose}`;
+    if (!todayByKey.has(key)) todayByKey.set(key, c);
+  });
+
+  const anyBranchMissingAll = branchesActive.some(b =>
+    PURPOSES.every(p => !todayByKey.has(`${b.id}_${p}`))
+  );
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
@@ -99,7 +116,7 @@ export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
             <Text style={s.modalHintTitle}>Что это</Text>
           </View>
           <Text style={s.modalHintText}>
-            Код дня — это секретный 4-значный код, который персонал называет имениннику чтобы тот активировал свой подарок ко ДР. Коды генерируются автоматически каждую ночь в 00:05 для каждой точки. Сообщите код официантам/баристам утром.
+            Коды дня — 4-значные коды, которые персонал сообщает гостям для активации подарков. Три вида: «День рождения», «Игра / Суперприз», «Квест». Генерируются автоматически каждую ночь в 00:05.
           </Text>
         </View>
 
@@ -107,52 +124,56 @@ export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
         <Text style={s.menuSectionTitle}>Сегодня · {fmtDateRu(TODAY)}</Text>
         {loading ? (
           <View style={{ paddingHorizontal: r.pad, gap: 10 }}>
-            {[1, 2, 3].map(i => <Skeleton key={i} w="100%" h={70} radius={14} />)}
+            {[1, 2, 3].map(i => <Skeleton key={i} w="100%" h={100} radius={14} />)}
           </View>
         ) : (
           branchesActive.map(b => {
-            const code = todayByBranch.get(b.id);
-            const missing = !code;
-            const isGen = generating === b.id;
+            const hasMissing = PURPOSES.some(p => !todayByKey.has(`${b.id}_${p}`));
             return (
-              <View key={b.id} style={[s.codeCard, missing && s.codeCardMissing]}>
+              <View key={b.id} style={[s.codeCard, hasMissing && s.codeCardMissing]}>
                 <View style={s.codeBranch}>
                   <Text style={s.codeBranchName} numberOfLines={1}>{b.name}</Text>
-                  <Text style={s.codeBranchSub}>
-                    {missing
-                      ? '⚠ Авто-генерация не сработала'
-                      : code.generated_by === 'MANUAL' ? 'Сгенерирован вручную' : 'Авто-генерация'}
-                  </Text>
+                  {hasMissing && (
+                    <Text style={s.codeBranchSub}>⚠ Часть кодов не сгенерирована</Text>
+                  )}
                 </View>
-                {missing ? (
-                  <Pressable
-                    style={[s.btn, { backgroundColor: C.warn, borderColor: C.warn, paddingHorizontal: 14 }]}
-                    {...ripple('rgba(255,255,255,0.22)')}
-                    onPress={() => onGenerate(b.id, b.name)}
-                    disabled={isGen}
-                  >
-                    {isGen
-                      ? <ActivityIndicator size="small" color={C.surface} />
-                      : <Zap size={14} color={C.surface} strokeWidth={2.4} />
-                    }
-                    <Text style={[s.btnPrimaryText, { fontSize: 12 }]}>
-                      {isGen ? '...' : 'СГЕНЕРИРОВАТЬ'}
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <Text style={s.codeBig}>{code.code}</Text>
-                )}
+                <View style={dc.purposeList}>
+                  {PURPOSES.map(purpose => {
+                    const key = `${b.id}_${purpose}`;
+                    const code = todayByKey.get(key);
+                    const isGen = generating === key;
+                    return (
+                      <View key={purpose} style={dc.purposeRow}>
+                        <Text style={dc.purposeLabel}>{PURPOSE_LABELS[purpose]}</Text>
+                        {isGen ? (
+                          <ActivityIndicator size="small" color={C.purple} />
+                        ) : code ? (
+                          <Text style={s.codeBig}>{code.code}</Text>
+                        ) : (
+                          <Pressable
+                            style={dc.genBtn}
+                            {...ripple('rgba(255,255,255,0.22)')}
+                            onPress={() => onGenerate(b.id, b.name, purpose)}
+                          >
+                            <Zap size={11} color={C.surface} strokeWidth={2.4} />
+                            <Text style={dc.genBtnText}>СОЗДАТЬ</Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
             );
           })
         )}
 
-        {/* Если есть пропуски — большая warning */}
-        {!loading && branchesActive.some(b => !todayByBranch.has(b.id)) && (
+        {/* Если все коды пропущены на точке */}
+        {!loading && anyBranchMissingAll && (
           <View style={[s.requireReplyHint, { marginHorizontal: r.pad, marginTop: 4, marginBottom: 14 }]}>
             <AlertTriangle size={13} color={C.warn} strokeWidth={2.2} />
             <Text style={s.requireReplyHintText}>
-              На некоторых точках нет авто-сгенерированного кода. Это значит — упало задание ночью. Сгенерируйте вручную и сообщите менеджеру ЛоялUP, чтобы починили автогенерацию.
+              На некоторых точках не сгенерированы коды. Значит — упало ночное задание. Создайте вручную и сообщите менеджеру ЛоялUP.
             </Text>
           </View>
         )}
@@ -178,7 +199,9 @@ export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
                 </View>
                 <View style={s.feedText}>
                   <Text style={s.feedTitle}>{c.branch_name ?? `Точка #${c.branch_id}`}</Text>
-                  <Text style={s.feedSub}>{fmtDateRu(c.valid_date)} · {c.generated_by === 'MANUAL' ? 'вручную' : 'авто'}</Text>
+                  <Text style={s.feedSub}>
+                    {fmtDateRu(c.valid_date)} · {PURPOSE_LABELS[c.purpose]} · {c.generated_by === 'MANUAL' ? 'вручную' : 'авто'}
+                  </Text>
                 </View>
                 <Text style={[s.feedTime, { fontFamily: 'Manrope_800ExtraBold', fontSize: 16, color: C.ink, letterSpacing: 1.5 }]}>
                   {c.code}
@@ -192,6 +215,42 @@ export const DailyCodesScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
   );
 };
 
+// ─────────────────────────────────────────────
+const dc = StyleSheet.create({
+  purposeList: {
+    marginTop: 10,
+    gap: 8,
+  },
+  purposeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  purposeLabel: {
+    fontFamily: 'Manrope_500Medium',
+    fontSize: 13,
+    color: C.ink2,
+    flex: 1,
+  },
+  genBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: C.warn,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  genBtnText: {
+    fontFamily: 'Manrope_700Bold',
+    fontSize: 11,
+    color: C.surface,
+    letterSpacing: 0.3,
+  },
+});
+
+// ─────────────────────────────────────────────
 function plural(n: number, forms: [string, string, string]): string {
   const mod10 = n % 10, mod100 = n % 100;
   if (mod10 === 1 && mod100 !== 11) return forms[0];

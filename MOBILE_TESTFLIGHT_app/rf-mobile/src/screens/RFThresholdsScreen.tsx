@@ -71,6 +71,16 @@ export const RFThresholdsScreen: React.FC<{ onBack: () => void }> = ({ onBack })
   };
 
   const onSave = async () => {
+    if (!(th.r_fresh_max < th.r_warm_max && th.r_warm_max < th.r_cooling_max)) {
+      haptic('error');
+      Alert.alert('Ошибка', 'R-границы должны идти строго возрастающе: R3 < R2 < R1 (Свежие < Тёплые < Остывают)');
+      return;
+    }
+    if (!(th.f_rare_max < th.f_moderate_max)) {
+      haptic('error');
+      Alert.alert('Ошибка', 'F-границы должны идти строго возрастающе: F1 < F2 (Редкие < Средние)');
+      return;
+    }
     haptic('medium');
     setSaving(true);
     try {
@@ -145,6 +155,11 @@ export const RFThresholdsScreen: React.FC<{ onBack: () => void }> = ({ onBack })
                 value={th.r_cooling_max} unit="дн"
                 onMinus={onChange('r_cooling_max', -1)}
                 onPlus={onChange('r_cooling_max', 1)}
+                s={s}
+              />
+              <ThrInfoRow
+                title="R0 — Холодные"
+                sub={`Последний визит > ${th.r_cooling_max} дн`}
                 last s={s}
               />
             </View>
@@ -166,6 +181,11 @@ export const RFThresholdsScreen: React.FC<{ onBack: () => void }> = ({ onBack })
                 value={th.f_moderate_max} unit="виз."
                 onMinus={onChange('f_moderate_max', -1)}
                 onPlus={onChange('f_moderate_max', 1)}
+                s={s}
+              />
+              <ThrInfoRow
+                title="F3 — Лояльные"
+                sub={`Визитов > ${th.f_moderate_max}`}
                 last s={s}
               />
             </View>
@@ -202,6 +222,23 @@ export const RFThresholdsScreen: React.FC<{ onBack: () => void }> = ({ onBack })
     </SafeAreaView>
   );
 };
+
+// ─────────────────────────────────────────────
+// Read-only строка для R0/F3 (автоматически вычисляется из соседних порогов)
+const ThrInfoRow: React.FC<{
+  title: string;
+  sub: string;
+  last?: boolean;
+  s: S;
+}> = ({ title, sub, last, s }) => (
+  <View style={[s.thrRow, last && s.thrRowLast, { opacity: 0.6 }]}>
+    <View style={s.thrLabel}>
+      <Text style={s.thrLabelTitle}>{title}</Text>
+      <Text style={s.thrLabelSub}>{sub}</Text>
+    </View>
+    <Text style={[s.thrLabelSub, { fontSize: 11, color: C.ink4, marginRight: 4 }]}>авто</Text>
+  </View>
+);
 
 // ─────────────────────────────────────────────
 const ThrRow: React.FC<{

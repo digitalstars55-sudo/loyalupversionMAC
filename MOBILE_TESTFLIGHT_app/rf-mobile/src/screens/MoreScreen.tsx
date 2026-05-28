@@ -309,12 +309,81 @@ export const MoreScreen: React.FC<{
             />
             <MenuRow
               s={s}
+              last
               icon={<HelpCircle size={18} color={C.ink2} strokeWidth={2} />}
               iconBg={C.lineSoft}
               title="Помощь"
               sub="База знаний и контакты"
               onPress={open('help')}
             />
+          </View>
+        </View>
+
+        {/* DEV-инструменты — только в режиме разработки */}
+        {__DEV__ && (
+          <>
+            <View style={s.menuSection}>
+              <Text style={s.menuSectionTitle}>Симулятор пушей</Text>
+              <View style={s.menuCard}>
+                <MenuRow
+                  s={s}
+                  icon={<Bell size={18} color={C.warn} strokeWidth={2} />}
+                  iconBg={C.warnSoft}
+                  title="Новый отзыв"
+                  sub="Имитация пуша о свежем отзыве"
+                  onPress={fakePush('review_new')}
+                />
+                <MenuRow
+                  s={s}
+                  icon={<Bot size={18} color={C.purpleDeep} strokeWidth={2} />}
+                  iconBg={C.purpleSoft}
+                  title="AI-черновик готов"
+                  sub="Имитация пуша о подтверждении черновика"
+                  onPress={fakePush('draft_ready')}
+                />
+                <MenuRow
+                  s={s}
+                  last
+                  icon={<MessageSquare size={18} color={C.good} strokeWidth={2} />}
+                  iconBg={C.goodSoft}
+                  title="Сообщение от менеджера"
+                  sub="Имитация чат-уведомления"
+                  onPress={fakePush('chat_message')}
+                />
+              </View>
+            </View>
+
+            <View style={s.menuSection}>
+              <Text style={s.menuSectionTitle}>Debug</Text>
+              <View style={s.menuCard}>
+                <MenuRow
+                  s={s}
+                  last
+                  icon={<CloudOff size={18} color={offline ? '#FEF3C7' : C.ink2} strokeWidth={2} />}
+                  iconBg={offline ? '#92400E' : C.lineSoft}
+                  title={offline ? 'Оффлайн (включён)' : 'Оффлайн (выключен)'}
+                  sub="Симулятор отсутствия сети — данные берём из кэша"
+                  valueText={offline ? 'ВКЛ' : 'ВЫКЛ'}
+                  valueOn={offline}
+                  onPress={() => {
+                    haptic('light');
+                    const next = !offline;
+                    setForceOffline(next);
+                    setOffline(next);
+                  }}
+                />
+              </View>
+            </View>
+          </>
+        )}
+
+        <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, textAlign: 'center', marginTop: 8 }]}>
+          ЛоялUP · версия 1.0
+        </Text>
+
+        {/* ВЫХОД — самый нижний элемент */}
+        <View style={[s.menuSection, { marginBottom: 8 }]}>
+          <View style={s.menuCard}>
             <MenuRow
               s={s}
               last
@@ -332,65 +401,6 @@ export const MoreScreen: React.FC<{
             />
           </View>
         </View>
-
-        {/* РАЗРАБОТКА — симулятор пушей */}
-        <View style={s.menuSection}>
-          <Text style={s.menuSectionTitle}>Симулятор пушей</Text>
-          <View style={s.menuCard}>
-            <MenuRow
-              s={s}
-              icon={<Bell size={18} color={C.warn} strokeWidth={2} />}
-              iconBg={C.warnSoft}
-              title="Новый отзыв"
-              sub="Имитация пуша о свежем отзыве"
-              onPress={fakePush('review_new')}
-            />
-            <MenuRow
-              s={s}
-              icon={<Bot size={18} color={C.purpleDeep} strokeWidth={2} />}
-              iconBg={C.purpleSoft}
-              title="AI-черновик готов"
-              sub="Имитация пуша о подтверждении черновика"
-              onPress={fakePush('draft_ready')}
-            />
-            <MenuRow
-              s={s}
-              last
-              icon={<MessageSquare size={18} color={C.good} strokeWidth={2} />}
-              iconBg={C.goodSoft}
-              title="Сообщение от менеджера"
-              sub="Имитация чат-уведомления"
-              onPress={fakePush('chat_message')}
-            />
-          </View>
-        </View>
-
-        {/* DEBUG — оффлайн-режим */}
-        <View style={s.menuSection}>
-          <Text style={s.menuSectionTitle}>Debug</Text>
-          <View style={s.menuCard}>
-            <MenuRow
-              s={s}
-              last
-              icon={<CloudOff size={18} color={offline ? '#FEF3C7' : C.ink2} strokeWidth={2} />}
-              iconBg={offline ? '#92400E' : C.lineSoft}
-              title={offline ? 'Оффлайн (включён)' : 'Оффлайн (выключен)'}
-              sub="Симулятор отсутствия сети — данные берём из кэша"
-              valueText={offline ? 'ВКЛ' : 'ВЫКЛ'}
-              valueOn={offline}
-              onPress={() => {
-                haptic('light');
-                const next = !offline;
-                setForceOffline(next);
-                setOffline(next);
-              }}
-            />
-          </View>
-        </View>
-
-        <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, textAlign: 'center', marginTop: 8 }]}>
-          ЛоялUP · версия 1.0
-        </Text>
       </ScrollView>
     </SafeAreaView>
   );
