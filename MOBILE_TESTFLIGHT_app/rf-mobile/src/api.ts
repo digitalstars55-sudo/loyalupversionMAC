@@ -1244,7 +1244,13 @@ export async function fetchProducts(): Promise<Product[]> {
   });
   if (!res.ok) throw new Error(`Products fetch failed: ${res.status}`);
   const data = await res.json();
-  return data.products ?? [];
+  const base = getApiBase();
+  return (data.products ?? []).map((p: Product) => ({
+    ...p,
+    image_url: p.image_url
+      ? (p.image_url.startsWith('http') ? p.image_url : `${base}${p.image_url}`)
+      : null,
+  }));
 }
 
 export async function saveProduct(p: Partial<Product> & {
@@ -1387,7 +1393,13 @@ export async function fetchPromotions(): Promise<Promotion[]> {
   });
   if (!res.ok) throw new Error(`Promotions fetch failed: ${res.status}`);
   const data = await res.json();
-  return data.promotions ?? [];
+  const base = getApiBase();
+  return (data.promotions ?? []).map((p: Promotion) => ({
+    ...p,
+    image_url: p.image_url
+      ? (p.image_url.startsWith('http') ? p.image_url : `${base}${p.image_url}`)
+      : null,
+  }));
 }
 
 export async function savePromotion(p: Partial<Promotion> & {

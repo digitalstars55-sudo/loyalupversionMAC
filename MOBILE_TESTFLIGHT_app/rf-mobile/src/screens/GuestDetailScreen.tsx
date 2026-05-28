@@ -6,7 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft, Phone, Cake, MapPin, Calendar, Coins, Gift, Star, MessageSquare,
-  Check, X, ArrowDownUp, TrendingUp, TrendingDown, Edit3,
+  Check, X, ArrowDownUp, TrendingUp, TrendingDown, Edit3, AlertCircle, RefreshCw,
 } from 'lucide-react-native';
 
 import { C } from '../theme';
@@ -32,12 +32,14 @@ export const GuestDetailScreen: React.FC<{
 
   const [guest, setGuest] = useState<GuestDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
 
   const load = async () => {
+    setLoadError(false);
     try { setGuest(await fetchGuestDetail({ vk_id: vkId })); }
-    catch {} finally { setLoading(false); setRefreshing(false); }
+    catch { setLoadError(true); } finally { setLoading(false); setRefreshing(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [vkId]);
   const onRefresh = () => { haptic('light'); setRefreshing(true); load(); };
@@ -78,13 +80,22 @@ export const GuestDetailScreen: React.FC<{
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
       >
-        {loading || !guest ? (
+        {loading ? (
           <View style={[s.gdHero, { paddingVertical: 30 }]}>
             <Skeleton w={84} h={84} radius={42} />
             <View style={{ height: 12 }} />
             <Skeleton w="60%" h={20} />
             <View style={{ height: 8 }} />
             <Skeleton w={120} h={22} radius={50} />
+          </View>
+        ) : loadError || !guest ? (
+          <View style={[s.gdHero, { paddingVertical: 40, gap: 12 }]}>
+            <AlertCircle size={36} color={C.warn} strokeWidth={1.5} />
+            <Text style={[s.emptyStateTitle, { textAlign: 'center' }]}>Не удалось загрузить профиль</Text>
+            <Pressable style={[s.btn, s.btnSecondary, { alignSelf: 'center' }]} {...ripple()} onPress={() => { setLoading(true); load(); }}>
+              <RefreshCw size={14} color={C.ink} strokeWidth={2} />
+              <Text style={s.btnSecondaryText}>Повторить</Text>
+            </Pressable>
           </View>
         ) : (
           <>
