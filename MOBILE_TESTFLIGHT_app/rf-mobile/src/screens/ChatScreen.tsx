@@ -286,7 +286,7 @@ export const ChatScreen: React.FC<{
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1, marginBottom: 78 }}
+        style={{ flex: 1, marginBottom: 136 }}
       >
         {/* Header */}
         <View style={s.chatHeader}>
