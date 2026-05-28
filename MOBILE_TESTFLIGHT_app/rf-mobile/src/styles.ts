@@ -381,8 +381,8 @@ export function makeStyles(r: Resp) {
     dsLeft: { borderRightWidth: 1, borderColor: C.lineSoft, paddingRight: 14 },
     dsRight: { paddingLeft: 14 },
     dsVal: {
-      fontFamily: F.extrabold, fontSize: scale(28), color: C.ink,
-      lineHeight: scale(28), letterSpacing: -0.8,
+      fontFamily: F.extrabold, fontSize: scale(26), color: C.ink,
+      lineHeight: scale(36), letterSpacing: -0.6,
     },
     dsLbl: {
       fontFamily: F.bold, fontSize: 10, color: C.ink3, marginTop: 6,

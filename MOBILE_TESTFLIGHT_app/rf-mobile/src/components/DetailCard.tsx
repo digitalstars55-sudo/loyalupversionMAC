@@ -29,11 +29,11 @@ export const DetailCard: React.FC<{
 
     <View style={s.detailStats}>
       <View style={[s.ds, s.dsLeft]}>
-        <Text style={s.dsVal} numberOfLines={1} adjustsFontSizeToFit>{fmtNum(cell.count)}</Text>
+        <Text style={s.dsVal} numberOfLines={1}>{fmtNum(cell.count)}</Text>
         <Text style={s.dsLbl}>гостей</Text>
       </View>
       <View style={[s.ds, s.dsRight]}>
-        <Text style={s.dsVal} numberOfLines={1} adjustsFontSizeToFit>{cell.pct.toFixed(1)}%</Text>
+        <Text style={s.dsVal} numberOfLines={1}>{cell.pct.toFixed(1)}%</Text>
         <Text style={s.dsLbl}>от базы</Text>
       </View>
     </View>
