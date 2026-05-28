@@ -39,11 +39,13 @@ export function AnalyticsScreen({
   onOpenThresholds,
   onOpenMenu,
   onOpenNotifications,
+  notificationsBadge,
 }: {
   onOpenBranchRatings?: () => void;
   onOpenThresholds?: () => void;
   onOpenMenu?: () => void;
   onOpenNotifications?: () => void;
+  notificationsBadge?: number;
 } = {}) {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
@@ -226,11 +228,20 @@ export function AnalyticsScreen({
             <Text style={s.titleMain}>Сегментация RF</Text>
           </View>
           <Pressable
-            style={s.iconBtn}
+            style={[s.iconBtn, { position: 'relative' }]}
             {...ripple()}
             onPress={() => { haptic('light'); onOpenNotifications?.(); }}
             accessibilityLabel="Уведомления"
-          ><Bell size={18} color={C.ink} strokeWidth={2} /></Pressable>
+          >
+            <Bell size={18} color={notificationsBadge ? C.purple : C.ink} strokeWidth={2} />
+            {!!notificationsBadge && (
+              <View style={{
+                position: 'absolute', top: 4, right: 4,
+                width: 8, height: 8, borderRadius: 4,
+                backgroundColor: C.warn,
+              }} />
+            )}
+          </Pressable>
         </View>
 
         {/* Hero */}

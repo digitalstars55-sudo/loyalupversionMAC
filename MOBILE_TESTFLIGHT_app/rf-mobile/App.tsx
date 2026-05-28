@@ -38,8 +38,10 @@ import { MOCK_REVIEWS, DEFAULT_AUTO_REPLY_SETTINGS, MOCK_MESSAGES } from './src/
 import type { Review, TabKey, AutoReplySettings, ChatMessage, Profile } from './src/types';
 import {
   setupPushHandlers, registerForPushNotifications, addPushResponseListener,
-  sendPushTokenToBackend,
+  addPushReceivedListener, sendPushTokenToBackend,
+  type PushPayload,
 } from './src/push';
+import { NotificationsScreen, type NotificationItem } from './src/screens/NotificationsScreen';
 import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
 import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
@@ -273,11 +275,27 @@ function Root({ onLogout }: { onLogout: () => void }) {
   // Deep-link к конкретному гостю (из поиска) — передадим в MoreScreen → GuestsScreen
   const [pendingGuestVkId, setPendingGuestVkId] = useState<string | null>(null);
 
+  // Deep-link из push — открыть конкретный под-экран MoreScreen
+  const [pendingOpenMoreScreen, setPendingOpenMoreScreen] = useState<string | null>(null);
+
   // Preset фильтра отзывов — когда переходим из Home по карточке (негатив/позитив/драфты)
   const [reviewsPreset, setReviewsPreset] = useState<'urgent' | 'unanswered' | 'replied' | 'drafts' | 'positive' | null>(null);
 
+  // История входящих уведомлений (max 50)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const addNotification = (payload: PushPayload, title: string, body: string) => {
+    const item: NotificationItem = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      type: payload.type,
+      title,
+      body,
+      receivedAt: new Date().toISOString(),
+    };
+    setNotifications(prev => [...prev.slice(-49), item]);
+  };
+
   // Overlay-экраны (открываются поверх любого таба)
-  const [overlay, setOverlay] = useState<null | 'branch-ratings' | 'reports' | 'rf-thresholds' | 'search' | 'birthdays' | 'engagement'>(null);
+  const [overlay, setOverlay] = useState<null | 'branch-ratings' | 'reports' | 'rf-thresholds' | 'search' | 'birthdays' | 'engagement' | 'notifications'>(null);
 
   // Бейдж = только негативные отзывы без ответа (то что реально требует реакции).
   // Совпадает с pendingCount в ReviewsScreen.
@@ -331,7 +349,6 @@ function Root({ onLogout }: { onLogout: () => void }) {
       if (token) sendPushTokenToBackend(token);
     });
     const sub = addPushResponseListener((payload) => {
-      // Тап по пушу → переход на нужный таб + (опц.) выбор сущности
       switch (payload.type) {
         case 'chat_message':
           setTab('chat');
@@ -342,20 +359,30 @@ function Root({ onLogout }: { onLogout: () => void }) {
           if (payload.review_id) setPushSelectedReviewId(payload.review_id);
           break;
         case 'payment_due':
-          setTab('home'); // payment reminder висит на Home
+          setTab('home');
           break;
         case 'report_ready':
           setOverlay('reports');
           break;
         case 'broadcast_done':
-        case 'staff_invited':
+          setTab('more'); setPendingOpenMoreScreen('campaigns');
+          break;
         case 'daily_code_missing':
+          setTab('more'); setPendingOpenMoreScreen('daily-codes');
+          break;
+        case 'staff_invited':
+          setTab('more'); setPendingOpenMoreScreen('staff');
+          break;
         case 'guest_birthday':
-          setTab('more'); // открываем «Ещё», там пользователь уже разберётся
+          setOverlay('birthdays');
           break;
       }
     });
-    return () => { sub?.remove(); };
+    // Listener для входящих пушей (foreground) — пишем в историю
+    const recSub = addPushReceivedListener((payload, title, body) => {
+      addNotification(payload, title, body);
+    });
+    return () => { sub?.remove(); recSub?.remove(); };
   }, []);
 
   // Overlay-экраны имеют приоритет над табами (но TabBar остаётся)
@@ -421,6 +448,30 @@ function Root({ onLogout }: { onLogout: () => void }) {
       </View>
     );
   }
+  if (overlay === 'notifications') {
+    return (
+      <View style={{ flex: 1 }}>
+        <NotificationsScreen
+          notifications={notifications}
+          onClose={() => setOverlay(null)}
+          onTap={(item) => {
+            setOverlay(null);
+            switch (item.type) {
+              case 'review_new': case 'draft_ready': setTab('reviews'); break;
+              case 'chat_message': setTab('chat'); break;
+              case 'report_ready': setOverlay('reports'); break;
+              case 'broadcast_done': setTab('more'); setPendingOpenMoreScreen('campaigns'); break;
+              case 'daily_code_missing': setTab('more'); setPendingOpenMoreScreen('daily-codes'); break;
+              case 'staff_invited': setTab('more'); setPendingOpenMoreScreen('staff'); break;
+              case 'guest_birthday': setOverlay('birthdays'); break;
+              default: setTab('home');
+            }
+          }}
+        />
+        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -443,7 +494,8 @@ function Root({ onLogout }: { onLogout: () => void }) {
           onOpenBranchRatings={() => setOverlay('branch-ratings')}
           onOpenThresholds={() => setOverlay('rf-thresholds')}
           onOpenMenu={() => setTab('more')}
-          onOpenNotifications={() => Alert.alert('Уведомления', 'Пока нет новых уведомлений.\n\nПуши о критичных событиях (просрочка тарифа, реактивация R0, новые отзывы) появятся здесь.')}
+          onOpenNotifications={() => setOverlay('notifications')}
+          notificationsBadge={notifications.length > 0 ? notifications.length : undefined}
         />
       )}
       {tab === 'reviews'   && (
@@ -466,6 +518,8 @@ function Root({ onLogout }: { onLogout: () => void }) {
           onLogout={onLogout}
           openGuestVkId={pendingGuestVkId}
           onGuestVkIdConsumed={() => setPendingGuestVkId(null)}
+          openSubScreen={pendingOpenMoreScreen}
+          onSubScreenConsumed={() => setPendingOpenMoreScreen(null)}
         />
       )}
 

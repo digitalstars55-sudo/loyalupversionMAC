@@ -64,14 +64,19 @@ export const MoreScreen: React.FC<{
   onLogout?: () => void;
   openGuestVkId?: string | null;
   onGuestVkIdConsumed?: () => void;
-}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout, openGuestVkId, onGuestVkIdConsumed }) => {
+  openSubScreen?: string | null;
+  onSubScreenConsumed?: () => void;
+}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout, openGuestVkId, onGuestVkIdConsumed, openSubScreen, onSubScreenConsumed }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
-  const [sub, setSub] = useState<SubScreen>(openGuestVkId ? 'guests' : null);
+  const [sub, setSub] = useState<SubScreen>(
+    openGuestVkId ? 'guests' : (openSubScreen as SubScreen | null) ?? null
+  );
   const [offline, setOffline] = useState<boolean>(isForceOffline());
 
   useEffect(() => {
     if (openGuestVkId) onGuestVkIdConsumed?.();
+    if (openSubScreen) onSubScreenConsumed?.();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (sub === 'auto-reply') {

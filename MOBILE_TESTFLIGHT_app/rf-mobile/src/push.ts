@@ -126,6 +126,27 @@ export const addPushResponseListener = (
   }
 };
 
+// Подписка на получение уведомления в foreground (без тапа).
+// Используется для записи в историю уведомлений.
+export const addPushReceivedListener = (
+  handler: (payload: PushPayload, title: string, body: string) => void,
+): { remove: () => void } | null => {
+  if (!Notifications) return null;
+  try {
+    const sub = Notifications.addNotificationReceivedListener((notification: any) => {
+      const data = notification?.request?.content?.data ?? {};
+      const title = notification?.request?.content?.title ?? '';
+      const body = notification?.request?.content?.body ?? '';
+      if (data && typeof data === 'object' && 'type' in data) {
+        handler(data as PushPayload, title, body);
+      }
+    });
+    return { remove: () => sub.remove() };
+  } catch {
+    return null;
+  }
+};
+
 // СИМУЛЯТОР — локальное уведомление для разработки / демо.
 // Появится из системы как настоящий пуш + payload как у настоящего.
 export const simulateLocalPush = async (payload: PushPayload): Promise<void> => {

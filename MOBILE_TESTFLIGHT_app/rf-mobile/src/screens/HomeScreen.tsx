@@ -195,11 +195,14 @@ export const HomeScreen: React.FC<{
               icon={<AlertCircle size={18} color={C.warn} strokeWidth={2.2} />}
               iconBg={C.warnSoft}
               title="Ответить на негатив"
-              sub={`${negPending.length} ${plural(negPending.length, ['негативный отзыв', 'негативных отзыва', 'негативных отзывов'])} за 30 дней`}
+              sub={negPending.length === 1
+                ? `${negPending[0].customer_name} · нажми чтобы ответить`
+                : `${negPending.length} ${plural(negPending.length, ['негативный отзыв', 'негативных отзыва', 'негативных отзывов'])} — нажми чтобы открыть первый`}
               badge={String(negPending.length)} badgeBg={C.warn} badgeColor={C.surface}
               onPress={() => {
                 haptic('medium');
-                if (onOpenReviewsFiltered) onOpenReviewsFiltered('urgent');
+                if (onOpenReview) onOpenReview(negPending[0].id);
+                else if (onOpenReviewsFiltered) onOpenReviewsFiltered('urgent');
                 else onNavigate('reviews');
               }}
             />
@@ -211,11 +214,14 @@ export const HomeScreen: React.FC<{
               icon={<Bot size={18} color={C.purpleDeep} strokeWidth={2.2} />}
               iconBg={C.purpleSoft}
               title="Подтвердить AI-черновики"
-              sub={`${draftsReady.length} ${plural(draftsReady.length, ['черновик готов', 'черновика готовы', 'черновиков готовы'])}`}
+              sub={draftsReady.length === 1
+                ? `${draftsReady[0].customer_name} · нажми чтобы открыть`
+                : `${draftsReady.length} ${plural(draftsReady.length, ['черновик готов', 'черновика готовы', 'черновиков готовы'])} — нажми чтобы открыть первый`}
               badge={String(draftsReady.length)} badgeBg={C.purple} badgeColor={C.surface}
               onPress={() => {
                 haptic('medium');
-                if (onOpenReviewsFiltered) onOpenReviewsFiltered('drafts');
+                if (onOpenReview) onOpenReview(draftsReady[0].id);
+                else if (onOpenReviewsFiltered) onOpenReviewsFiltered('drafts');
                 else onNavigate('reviews');
               }}
             />
