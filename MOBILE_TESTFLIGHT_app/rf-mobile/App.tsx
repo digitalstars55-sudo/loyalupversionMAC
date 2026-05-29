@@ -45,6 +45,7 @@ import { NotificationsScreen, type NotificationItem, PUSH_TYPE_LABELS } from './
 import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, fetchNotifications, markNotificationsRead, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
 import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
+import { registerAssistantNav } from './src/navBridge';
 import { OfflineBanner } from './src/components/OfflineBanner';
 
 import { AuthScreen } from './src/screens/AuthScreen';
@@ -376,6 +377,24 @@ function Root({ onLogout, onSwitchTenant, currentTenantName }: {
 
   // Overlay-экраны (открываются поверх любого таба)
   const [overlay, setOverlay] = useState<null | 'branch-ratings' | 'reports' | 'rf-thresholds' | 'search' | 'birthdays' | 'engagement' | 'notifications'>(null);
+
+  // Deep-link действия от Лояльчика (плавающий ассистент вне Root) → навигация.
+  useEffect(() => {
+    const TAB_SCREENS = new Set(['home', 'analytics', 'reviews', 'chat']);
+    return registerAssistantNav((action) => {
+      setOverlay(null);
+      const { screen, params } = action;
+      if (screen === 'reviews') {
+        setTab('reviews');
+        if (params?.reviewId) setPushSelectedReviewId(params.reviewId);
+      } else if (TAB_SCREENS.has(screen)) {
+        setTab(screen as TabKey);
+      } else {
+        setTab('more');
+        setPendingOpenMoreScreen(screen);
+      }
+    });
+  }, []);
 
   // Бейдж = только негативные отзывы без ответа (то что реально требует реакции).
   // Совпадает с pendingCount в ReviewsScreen.

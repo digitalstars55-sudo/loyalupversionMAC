@@ -10,6 +10,7 @@ import { C, F } from '../theme';
 import { haptic, ripple } from '../platform';
 import { askAssistant, fetchAssistantContext } from '../api';
 import { storage } from '../storage';
+import { runAssistantAction, type AssistantAction } from '../navBridge';
 
 const HISTORY_KEY = '@loyalup/loyalchik_history';
 
@@ -18,7 +19,7 @@ const IDLE_ANIM = require('../assets/loyalchik/loyalchik_idle.json');
 const GREETING_ANIM = require('../assets/loyalchik/loyalchik_greeting.json');
 const THINKING_ANIM = require('../assets/loyalchik/loyalchik_thinking.json');
 
-type Msg = { role: 'user' | 'assistant'; content: string };
+type Msg = { role: 'user' | 'assistant'; content: string; actions?: AssistantAction[] };
 
 // Защита OTA: если на старом билде нет нативного lottie-react-native — рендерим эмодзи,
 // а не крашим приложение (Lottie появляется только в билде, где модуль вшит).
@@ -103,8 +104,8 @@ export const LoyalchikAssistant: React.FC = () => {
     setLoading(true);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
     try {
-      const answer = await askAssistant({ question: q, history });
-      setMsgs(prev => [...prev, { role: 'assistant', content: answer || '…' }]);
+      const { answer, actions } = await askAssistant({ question: q, history });
+      setMsgs(prev => [...prev, { role: 'assistant', content: answer || '…', actions }]);
     } catch (e: any) {
       setMsgs(prev => [...prev, { role: 'assistant', content: 'Ой, Лояльчик засмотрелся на звёзды 🌌 Попробуй ещё раз.' }]);
     } finally {
@@ -152,6 +153,20 @@ export const LoyalchikAssistant: React.FC = () => {
                   <View style={[st.bubble, m.role === 'user' ? st.bubbleUser : st.bubbleBot]}>
                     <Text style={[st.bubbleText, m.role === 'user' && { color: C.surface }]}>{m.content}</Text>
                   </View>
+                  {m.role === 'assistant' && m.actions && m.actions.length > 0 && (
+                    <View style={st.actionsWrap}>
+                      {m.actions.map((a, j) => (
+                        <Pressable
+                          key={j}
+                          style={st.actionBtn}
+                          {...ripple('rgba(255,255,255,0.25)')}
+                          onPress={() => { haptic('medium'); runAssistantAction(a); setOpen(false); }}
+                        >
+                          <Text style={st.actionBtnText}>{a.label} →</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
                 </View>
               ))}
               {loading && (
@@ -268,6 +283,10 @@ const st = {
     borderColor: C.line,
   },
   chipText: { fontFamily: F.semibold, fontSize: 12.5, color: C.purpleDeep },
+
+  actionsWrap: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 8, marginTop: 8, maxWidth: '85%' as const },
+  actionBtn: { backgroundColor: C.purple, borderRadius: 14, paddingVertical: 9, paddingHorizontal: 14 },
+  actionBtnText: { fontFamily: F.semibold, fontSize: 13, color: C.surface },
 
   inputRow: {
     flexDirection: 'row' as const,

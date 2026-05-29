@@ -21,6 +21,7 @@ import {
 } from './mocks';
 import { cacheSet, withCache } from './storage';
 import { isForceOffline, markOffline, markOnline } from './network';
+import type { AssistantAction } from './navBridge';
 
 // ════════════════════════════════════════════════════════════════════
 // API — клиент под /api/v1/...
@@ -950,10 +951,10 @@ export async function appendReviewMessage(p: { review_id: number; text: string }
 export async function askAssistant(p: {
   question: string;
   history?: { role: 'user' | 'assistant'; content: string }[];
-}): Promise<string> {
+}): Promise<{ answer: string; actions: AssistantAction[] }> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 600));
-    return 'Это демо-режим Лояльчика 🚀 На проде я отвечаю на вопросы по системе.';
+    return { answer: 'Это демо-режим Лояльчика 🚀 На проде я отвечаю на вопросы по системе.', actions: [] };
   }
   const res = await fetch(new URL('/api/v1/assistant/ask/', getApiBase()).toString(), {
     method: 'POST',
@@ -962,7 +963,7 @@ export async function askAssistant(p: {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `Assistant failed: ${res.status}`);
-  return data.answer ?? '';
+  return { answer: data.answer ?? '', actions: Array.isArray(data.actions) ? data.actions : [] };
 }
 
 export async function fetchAssistantContext(): Promise<{
