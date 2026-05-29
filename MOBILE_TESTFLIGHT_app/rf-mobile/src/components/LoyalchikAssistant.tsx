@@ -33,6 +33,19 @@ class MascotBoundary extends React.Component<
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 
+// Простой markdown-рендер для ответов AI: **жирный** → bold, маркеры списков
+// (* / -) → •, одиночные звёздочки убираем (иначе видны как мусор в тексте).
+function renderRich(text: string): React.ReactNode {
+  const normalized = text.replace(/^[ \t]*[*-]\s+/gm, '• ');
+  const parts = normalized.split('**');
+  return parts.map((p, i) => {
+    const clean = p.replace(/\*/g, '');
+    return i % 2 === 1
+      ? <Text key={i} style={{ fontFamily: F.bold }}>{clean}</Text>
+      : <Text key={i}>{clean}</Text>;
+  });
+}
+
 const GREETING = 'Привет! Я Лояльчик 🚀 Помогу разобраться с приложением и программой лояльности. Спроси что угодно — например «как ответить на отзыв?» или «что такое RF-сегменты?».';
 
 // ════════════════════════════════════════════════════════════════════
@@ -151,7 +164,7 @@ export const LoyalchikAssistant: React.FC = () => {
               {msgs.map((m, i) => (
                 <View key={i} style={m.role === 'user' ? st.rowUser : st.rowBot}>
                   <View style={[st.bubble, m.role === 'user' ? st.bubbleUser : st.bubbleBot]}>
-                    <Text style={[st.bubbleText, m.role === 'user' && { color: C.surface }]}>{m.content}</Text>
+                    <Text style={[st.bubbleText, m.role === 'user' && { color: C.surface }]}>{renderRich(m.content)}</Text>
                   </View>
                   {m.role === 'assistant' && m.actions && m.actions.length > 0 && (
                     <View style={st.actionsWrap}>
@@ -221,7 +234,7 @@ const st = {
   fab: {
     position: 'absolute' as const,
     right: 16,
-    bottom: 150,
+    bottom: 200, // выше FAB-обновления на экране Аналитики (тот ~122–178)
     width: 56,
     height: 56,
     borderRadius: 28,
