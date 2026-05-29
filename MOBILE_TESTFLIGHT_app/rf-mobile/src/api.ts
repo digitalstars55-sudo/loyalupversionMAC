@@ -965,6 +965,32 @@ export async function askAssistant(p: {
   return data.answer ?? '';
 }
 
+export async function fetchAssistantContext(): Promise<{
+  greeting: string;
+  suggestions: string[];
+  stats?: Record<string, number>;
+}> {
+  const fallback = {
+    greeting: 'Привет! Я Лояльчик 🚀 Помогу разобраться с приложением и программой лояльности. Спроси что угодно!',
+    suggestions: ['Как ответить на отзыв?', 'Что такое RF-сегменты?', 'Как запустить рассылку?'],
+  };
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return fallback; }
+  try {
+    const res = await fetch(new URL('/api/v1/assistant/context/', getApiBase()).toString(), {
+      headers: { Accept: 'application/json', ...authHeaders() },
+    });
+    if (!res.ok) return fallback;
+    const data = await res.json();
+    return {
+      greeting: data.greeting || fallback.greeting,
+      suggestions: Array.isArray(data.suggestions) && data.suggestions.length ? data.suggestions : fallback.suggestions,
+      stats: data.stats,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════
 // GUEST DETAIL
 // ════════════════════════════════════════════════════════════════════

@@ -8,7 +8,10 @@ import { X, Send } from 'lucide-react-native';
 
 import { C, F } from '../theme';
 import { haptic, ripple } from '../platform';
-import { askAssistant } from '../api';
+import { askAssistant, fetchAssistantContext } from '../api';
+import { storage } from '../storage';
+
+const HISTORY_KEY = '@loyalup/loyalchik_history';
 
 // Lottie-маскот «Лояльчик» (космонавт-робот). Цвета совпадают с темой приложения.
 const IDLE_ANIM = require('../assets/loyalchik/loyalchik_idle.json');
@@ -16,6 +19,18 @@ const GREETING_ANIM = require('../assets/loyalchik/loyalchik_greeting.json');
 const THINKING_ANIM = require('../assets/loyalchik/loyalchik_thinking.json');
 
 type Msg = { role: 'user' | 'assistant'; content: string };
+
+// Защита OTA: если на старом билде нет нативного lottie-react-native — рендерим эмодзи,
+// а не крашим приложение (Lottie появляется только в билде, где модуль вшит).
+class MascotBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch() {}
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
 
 const GREETING = 'Привет! Я Лояльчик 🚀 Помогу разобраться с приложением и программой лояльности. Спроси что угодно — например «как ответить на отзыв?» или «что такое RF-сегменты?».';
 
@@ -30,7 +45,39 @@ export const LoyalchikAssistant: React.FC = () => {
   const [msgs, setMsgs] = useState<Msg[]>([{ role: 'assistant', content: GREETING }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const scrollRef = useRef<ScrollView>(null);
+  const ctxFetched = useRef(false);
+  const hydrated = useRef(false);
+
+  // История диалога — сохраняем между запусками.
+  useEffect(() => {
+    storage.getItem(HISTORY_KEY).then(raw => {
+      if (!raw) return;
+      try {
+        const saved = JSON.parse(raw);
+        if (Array.isArray(saved) && saved.length) setMsgs(saved);
+      } catch {}
+    }).catch(() => {}).finally(() => { hydrated.current = true; });
+  }, []);
+  useEffect(() => {
+    if (!hydrated.current) return; // не затирать сохранённую историю до загрузки
+    storage.setItem(HISTORY_KEY, JSON.stringify(msgs.slice(-30))).catch(() => {});
+  }, [msgs]);
+
+  // При первом открытии — тянем проактивное приветствие + подсказки по реальным данным.
+  useEffect(() => {
+    if (!open || ctxFetched.current) return;
+    ctxFetched.current = true;
+    fetchAssistantContext().then(ctx => {
+      setSuggestions(ctx.suggestions);
+      setMsgs(prev => {
+        const hasUser = prev.some(m => m.role === 'user');
+        if (!hasUser) return [{ role: 'assistant', content: ctx.greeting }];
+        return prev;
+      });
+    }).catch(() => {});
+  }, [open]);
 
   // При открытии чата маскот «прилетает» (greeting), потом — idle.
   const [headerGreeting, setHeaderGreeting] = useState(false);
@@ -45,13 +92,14 @@ export const LoyalchikAssistant: React.FC = () => {
   const headerSource = loading ? THINKING_ANIM : (headerGreeting ? GREETING_ANIM : IDLE_ANIM);
   const headerLoop = !(headerGreeting && !loading); // greeting — один проход
 
-  const send = async () => {
-    const q = input.trim();
+  const send = async (textArg?: string) => {
+    const q = (textArg ?? input).trim();
     if (!q || loading) return;
     haptic('light');
+    setSuggestions([]); // прячем подсказки после первого вопроса
     const history = msgs.filter(m => m.content !== GREETING).slice(-10);
     setMsgs(prev => [...prev, { role: 'user', content: q }]);
-    setInput('');
+    if (!textArg) setInput('');
     setLoading(true);
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
     try {
@@ -74,7 +122,9 @@ export const LoyalchikAssistant: React.FC = () => {
         onPress={() => { haptic('medium'); setOpen(true); }}
         accessibilityLabel="Открыть AI-ассистента Лояльчика"
       >
-        <LottieView source={IDLE_ANIM} autoPlay loop style={{ width: 50, height: 50 }} />
+        <MascotBoundary fallback={<Text style={{ fontSize: 30 }}>🚀</Text>}>
+          <LottieView source={IDLE_ANIM} autoPlay loop style={{ width: 50, height: 50 }} />
+        </MascotBoundary>
       </Pressable>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)} statusBarTranslucent>
@@ -83,7 +133,9 @@ export const LoyalchikAssistant: React.FC = () => {
           <View style={st.sheet}>
             <View style={st.header}>
               <View style={st.headerMascot}>
-                <LottieView source={headerSource} autoPlay loop={headerLoop} style={{ width: 38, height: 38 }} />
+                <MascotBoundary fallback={<Text style={{ fontSize: 22 }}>🚀</Text>}>
+                  <LottieView source={headerSource} autoPlay loop={headerLoop} style={{ width: 38, height: 38 }} />
+                </MascotBoundary>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={st.title}>AI Лояльчик</Text>
@@ -112,6 +164,17 @@ export const LoyalchikAssistant: React.FC = () => {
               )}
             </ScrollView>
 
+            {/* Подсказки-вопросы (до первого вопроса) */}
+            {suggestions.length > 0 && !loading && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={st.chipsScroll} contentContainerStyle={st.chipsRow}>
+                {suggestions.map((sg, i) => (
+                  <Pressable key={i} style={st.chip} {...ripple()} onPress={() => send(sg)}>
+                    <Text style={st.chipText}>{sg}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+
             <View style={st.inputRow}>
               <TextInput
                 style={st.input}
@@ -121,12 +184,12 @@ export const LoyalchikAssistant: React.FC = () => {
                 placeholderTextColor={C.ink4}
                 multiline
                 maxLength={1000}
-                onSubmitEditing={send}
+                onSubmitEditing={() => send()}
               />
               <Pressable
                 style={[st.sendBtn, (!input.trim() || loading) && { opacity: 0.4 }]}
                 {...ripple('rgba(255,255,255,0.25)')}
-                onPress={send}
+                onPress={() => send()}
                 disabled={!input.trim() || loading}
               >
                 <Send size={18} color={C.surface} strokeWidth={2.4} />
@@ -193,6 +256,18 @@ const st = {
   bubbleUser: { backgroundColor: C.purple, borderBottomRightRadius: 4 },
   bubbleBot: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderBottomLeftRadius: 4 },
   bubbleText: { fontFamily: F.medium, fontSize: 14, color: C.ink, lineHeight: 19 },
+
+  chipsScroll: { maxHeight: 44, flexGrow: 0 as const },
+  chipsRow: { paddingHorizontal: 12, paddingVertical: 6, gap: 8, alignItems: 'center' as const },
+  chip: {
+    backgroundColor: C.purpleSoft,
+    borderRadius: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: C.line,
+  },
+  chipText: { fontFamily: F.semibold, fontSize: 12.5, color: C.purpleDeep },
 
   inputRow: {
     flexDirection: 'row' as const,
