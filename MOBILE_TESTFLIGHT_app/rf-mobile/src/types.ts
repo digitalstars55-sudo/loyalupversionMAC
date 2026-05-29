@@ -220,6 +220,13 @@ export interface Campaign {
 // ════════════════════════════════════════════════════════════════════
 // PROFILE — текущий пользователь приложения
 // ════════════════════════════════════════════════════════════════════
+// Сеть (тенант), доступная пользователю — для переключателя сетей.
+export interface TenantCompany {
+  id: number;
+  name: string;
+  domain: string;   // напр. "asap-orel.levelupapp.ru"
+}
+
 export interface Profile {
   id: number;
   full_name: string;       // ФИО
@@ -234,6 +241,7 @@ export interface Profile {
   branch_ids: number[];    // на какие точки имеет доступ
   tenant_domain?: string | null;   // напр. "demo.levone.ru" — мобайл переключает API_BASE
   tenant_name?: string | null;     // напр. "Кофейня Уют"
+  companies?: TenantCompany[];     // все сети юзера — если >1, показываем выбор сети
 }
 
 // ════════════════════════════════════════════════════════════════════

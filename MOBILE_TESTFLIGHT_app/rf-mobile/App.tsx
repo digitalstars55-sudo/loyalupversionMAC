@@ -35,7 +35,7 @@ import { C } from './src/theme';
 import { useResponsive } from './src/responsive';
 import { makeStyles } from './src/styles';
 import { MOCK_REVIEWS, DEFAULT_AUTO_REPLY_SETTINGS, MOCK_MESSAGES } from './src/mocks';
-import type { Review, TabKey, AutoReplySettings, ChatMessage, Profile } from './src/types';
+import type { Review, TabKey, AutoReplySettings, ChatMessage, Profile, TenantCompany } from './src/types';
 import {
   setupPushHandlers, registerForPushNotifications, addPushResponseListener,
   addPushReceivedListener, sendPushTokenToBackend,
@@ -49,6 +49,7 @@ import { OfflineBanner } from './src/components/OfflineBanner';
 
 import { AuthScreen } from './src/screens/AuthScreen';
 import { ChoiceScreen } from './src/screens/ChoiceScreen';
+import { TenantSelectScreen } from './src/screens/TenantSelectScreen';
 import { OnboardingSlideshow } from './src/screens/OnboardingSlideshow';
 import { OnboardingChatScreen, type LeadDraft } from './src/screens/OnboardingChatScreen';
 import { OnboardingPendingScreen } from './src/screens/OnboardingPendingScreen';
@@ -114,6 +115,8 @@ function AuthGate() {
   const [token, setToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [bootstrapping, setBootstrapping] = useState(true);
+  // Выбранная сеть при мультитенантности (null = ещё не выбрана → показать выбор)
+  const [activeTenant, setActiveTenant] = useState<TenantCompany | null>(null);
 
   // Маршрут для незалогиненной части: на старте — choice
   const [flow, setFlow] = useState<AuthFlow>('choice');
@@ -144,8 +147,16 @@ function AuthGate() {
             try {
               const parsedProfile: Profile = JSON.parse(savedProfile);
               setProfile(parsedProfile);
-              // Восстанавливаем tenant_domain → переключаем API_BASE
-              if (parsedProfile.tenant_domain) {
+              // Восстанавливаем ранее выбранную сеть (мультитенант) или primary-домен.
+              let savedTenant: TenantCompany | null = null;
+              try {
+                const rawAt = await storage.getItem(STORAGE_KEYS.ACTIVE_TENANT);
+                if (rawAt) savedTenant = JSON.parse(rawAt);
+              } catch {}
+              if (savedTenant?.domain) {
+                setActiveTenant(savedTenant);
+                setApiBase(savedTenant.domain);
+              } else if (parsedProfile.tenant_domain) {
                 setApiBase(parsedProfile.tenant_domain);
               }
             } catch {}
@@ -160,10 +171,13 @@ function AuthGate() {
     setToken(newToken);
     setProfile(newProfile);
     // Если backend отдал tenant_domain — переключаем API_BASE
-    // на поддомен тенанта для всех последующих запросов.
+    // на поддомен тенанта для всех последующих запросов (дефолт/primary).
     if (newProfile.tenant_domain) {
       setApiBase(newProfile.tenant_domain);
     }
+    // Свежий вход: сбрасываем выбранную сеть. Если сетей >1 — покажем выбор.
+    setActiveTenant(null);
+    storage.removeItem(STORAGE_KEYS.ACTIVE_TENANT).catch(() => {});
     storage.setItem(STORAGE_KEYS.AUTH_TOKEN, newToken).catch(() => {});
     storage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(newProfile)).catch(() => {});
     if (refresh) {
@@ -177,10 +191,12 @@ function AuthGate() {
     setToken(null);
     setProfile(null);
     setApiBase(null);                       // вернуть API_BASE к default'у
+    setActiveTenant(null);
     setFlow('choice');
     await storage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
     await storage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
     await storage.removeItem(STORAGE_KEYS.PROFILE);
+    await storage.removeItem(STORAGE_KEYS.ACTIVE_TENANT);
   }, []);
 
   // Отправка заявки на бэкенд. В USE_MOCK режиме идёт на мок,
@@ -200,8 +216,43 @@ function AuthGate() {
     setFlow('pending');
   }, []);
 
+  // Выбор / переключение сети (только при доступе к нескольким сетям)
+  const companies = profile?.companies ?? [];
+  const multiTenant = companies.length > 1;
+
+  const handleSelectTenant = useCallback((c: TenantCompany) => {
+    setApiBase(c.domain);
+    setActiveTenant(c);
+    storage.setItem(STORAGE_KEYS.ACTIVE_TENANT, JSON.stringify(c)).catch(() => {});
+  }, []);
+
+  const handleSwitchTenant = useCallback(() => {
+    // Сбрасываем выбор → снова покажется экран выбора сети
+    setActiveTenant(null);
+    storage.removeItem(STORAGE_KEYS.ACTIVE_TENANT).catch(() => {});
+  }, []);
+
   if (bootstrapping) return null;
-  if (token) return <Root onLogout={onLogout} />;
+  if (token) {
+    if (multiTenant && !activeTenant) {
+      return (
+        <TenantSelectScreen
+          companies={companies}
+          currentDomain={activeTenant?.domain ?? null}
+          onSelect={handleSelectTenant}
+          onLogout={onLogout}
+        />
+      );
+    }
+    return (
+      <Root
+        key={activeTenant?.domain || profile?.tenant_domain || 'default'}
+        onLogout={onLogout}
+        onSwitchTenant={multiTenant ? handleSwitchTenant : undefined}
+        currentTenantName={activeTenant?.name || profile?.tenant_name || undefined}
+      />
+    );
+  }
 
   // ─── Незалогинены: онбординг или login ───
   switch (flow) {
@@ -245,7 +296,11 @@ function AuthGate() {
   }
 }
 
-function Root({ onLogout }: { onLogout: () => void }) {
+function Root({ onLogout, onSwitchTenant, currentTenantName }: {
+  onLogout: () => void;
+  onSwitchTenant?: () => void;
+  currentTenantName?: string;
+}) {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
 
@@ -567,6 +622,8 @@ function Root({ onLogout }: { onLogout: () => void }) {
           onOpenChat={() => setTab('chat')}
           reviews={reviews}
           onLogout={onLogout}
+          onSwitchTenant={onSwitchTenant}
+          currentTenantName={currentTenantName}
           openGuestVkId={pendingGuestVkId}
           onGuestVkIdConsumed={() => setPendingGuestVkId(null)}
           openSubScreen={pendingOpenMoreScreen}

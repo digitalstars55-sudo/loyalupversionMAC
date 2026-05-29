@@ -99,6 +99,7 @@ export const STORAGE_KEYS = {
   AUTH_TOKEN:    '@loyalup/auth_token',
   REFRESH_TOKEN: '@loyalup/refresh_token',
   PROFILE:       '@loyalup/profile',
+  ACTIVE_TENANT: '@loyalup/active_tenant',  // выбранная сеть (домен) при мультитенантности
 } as const;
 
 // ════════════════════════════════════════════════════════════════════

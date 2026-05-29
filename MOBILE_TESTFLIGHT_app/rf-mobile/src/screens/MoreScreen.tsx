@@ -62,11 +62,13 @@ export const MoreScreen: React.FC<{
   onOpenChat: () => void;
   reviews: Review[];
   onLogout?: () => void;
+  onSwitchTenant?: () => void;
+  currentTenantName?: string;
   openGuestVkId?: string | null;
   onGuestVkIdConsumed?: () => void;
   openSubScreen?: string | null;
   onSubScreenConsumed?: () => void;
-}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout, openGuestVkId, onGuestVkIdConsumed, openSubScreen, onSubScreenConsumed }) => {
+}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout, onSwitchTenant, currentTenantName, openGuestVkId, onGuestVkIdConsumed, openSubScreen, onSubScreenConsumed }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
   const [sub, setSub] = useState<SubScreen>(
@@ -382,6 +384,24 @@ export const MoreScreen: React.FC<{
               </View>
             </View>
           </>
+        )}
+
+        {/* СЕТЬ — переключатель (только если доступно несколько сетей) */}
+        {onSwitchTenant && (
+          <View style={s.menuSection}>
+            <Text style={s.menuSectionTitle}>Сеть</Text>
+            <View style={s.menuCard}>
+              <MenuRow
+                s={s}
+                last
+                icon={<Store size={18} color={C.purpleDeep} strokeWidth={2} />}
+                iconBg={C.purpleSoft}
+                title="Сменить сеть"
+                sub={currentTenantName ? `Сейчас: ${currentTenantName}` : 'Выбрать другую сеть'}
+                onPress={() => { haptic('light'); onSwitchTenant(); }}
+              />
+            </View>
+          </View>
         )}
 
         <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, textAlign: 'center', marginTop: 8 }]}>
