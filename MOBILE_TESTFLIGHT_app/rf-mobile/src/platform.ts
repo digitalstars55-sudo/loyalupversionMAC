@@ -37,6 +37,28 @@ export const ripple = (color = 'rgba(168, 85, 247, 0.12)', borderless = false) =
 export const formatPhone = (phone: string): string =>
   phone.replace(/^(\+\d)(\d{3})(\d{3})(\d{2})(\d{2})$/, '$1 $2 $3-$4-$5');
 
+// Живая маска ввода РФ-номера: что бы ни ввели → «+7 (999) 123-45-67».
+export const maskRuPhoneInput = (input: string): string => {
+  let d = input.replace(/\D/g, '');
+  if (d.startsWith('8')) d = '7' + d.slice(1);
+  if (d && !d.startsWith('7')) d = '7' + d;
+  d = d.slice(0, 11);
+  const a = d.slice(1); // до 10 цифр после кода
+  if (!a) return d ? '+7' : '';
+  let out = '+7 (' + a.slice(0, 3);
+  if (a.length >= 3) out += ')';
+  if (a.length > 3) out += ' ' + a.slice(3, 6);
+  if (a.length > 6) out += '-' + a.slice(6, 8);
+  if (a.length > 8) out += '-' + a.slice(8, 10);
+  return out;
+};
+
+// Нормализация маски → E.164 (+7XXXXXXXXXX) или '' если неполный.
+export const ruPhoneToE164 = (masked: string): string => {
+  const d = masked.replace(/\D/g, '');
+  return d.length === 11 ? '+' + d : '';
+};
+
 // Открывает нативный набор номера. Сначала Alert-подтверждение.
 export const callPhone = (params: { phone: string; name?: string; workHours?: string }) => {
   const { phone, name, workHours } = params;

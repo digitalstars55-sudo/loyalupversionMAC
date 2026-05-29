@@ -12,7 +12,7 @@ import {
 
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
-import { haptic, ripple, formatPhone } from '../platform';
+import { haptic, ripple, formatPhone, maskRuPhoneInput, ruPhoneToE164 } from '../platform';
 import { avatarColor, initials, relativeTime } from '../helpers';
 import { fetchStaff, updateStaff, inviteStaff, deleteStaff, fetchBranches } from '../api';
 import { DEFAULT_PERMS_BY_ROLE } from '../mocks';
@@ -503,7 +503,7 @@ const InviteModal: React.FC<{
     if (visible) { setName(''); setEmail(''); setPhone(''); setRole(roleOptions[0]); }
   }, [visible]);
 
-  const valid = name.trim().length >= 3 && (email.includes('@') || phone.length >= 10);
+  const valid = name.trim().length >= 3 && (email.includes('@') || ruPhoneToE164(phone) !== '');
 
   const submit = async () => {
     if (!valid) return;
@@ -513,7 +513,7 @@ const InviteModal: React.FC<{
       await onInvite({
         full_name: name.trim(),
         email: email.trim() || undefined,
-        phone: phone.trim() || undefined,
+        phone: ruPhoneToE164(phone) || undefined,
         role,
         branch_ids: [],
       });
@@ -574,10 +574,11 @@ const InviteModal: React.FC<{
                 <View style={s.fieldText}>
                   <TextInput
                     style={s.fieldInput}
-                    value={phone} onChangeText={setPhone}
-                    placeholder="+7 999 123-45-67"
+                    value={phone} onChangeText={(t) => setPhone(maskRuPhoneInput(t))}
+                    placeholder="+7 (999) 123-45-67"
                     placeholderTextColor={C.ink4}
                     keyboardType="phone-pad"
+                    maxLength={18}
                   />
                 </View>
               </View>

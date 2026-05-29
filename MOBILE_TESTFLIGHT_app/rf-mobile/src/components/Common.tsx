@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text } from 'react-native';
 import { ArrowUp, ArrowDown } from 'lucide-react-native';
 import { C } from '../theme';
 import { ripple } from '../platform';
+import { ScalePressable } from './ScalePressable';
 import type { S } from '../styles';
 
 // ════════════════════════════════════════════════════════════════════
@@ -10,16 +11,16 @@ import type { S } from '../styles';
 // ════════════════════════════════════════════════════════════════════
 
 export const Chip: React.FC<{ active?: boolean; onPress: () => void; children?: React.ReactNode; s: S }> = ({ active, onPress, children, s }) => (
-  <Pressable style={[s.chip, active && s.chipActive]} {...ripple('rgba(255,255,255,0.2)')} onPress={onPress}>
+  <ScalePressable style={[s.chip, active && s.chipActive]} {...ripple('rgba(255,255,255,0.2)')} onPress={onPress}>
     <Text style={[s.chipText, active && s.chipTextActive]}>{children}</Text>
-  </Pressable>
+  </ScalePressable>
 );
 
 export const SegBtn: React.FC<{ active: boolean; onPress: () => void; icon: React.ReactNode; label: string; s: S }> = ({ active, onPress, icon, label, s }) => (
-  <Pressable style={[s.seg, active && s.segActive]} {...ripple('rgba(255,255,255,0.2)')} onPress={onPress}>
+  <ScalePressable style={[s.seg, active && s.segActive]} {...ripple('rgba(255,255,255,0.2)')} onPress={onPress}>
     {icon}
     <Text style={[s.segText, active && s.segTextActive]}>{label}</Text>
-  </Pressable>
+  </ScalePressable>
 );
 
 export type KPITone = 'ink' | 'purple' | 'watch' | 'muted';
@@ -42,9 +43,9 @@ export const KPI: React.FC<{ tone: KPITone; label: string; value: string; sub: s
 };
 
 export const Tab: React.FC<{ icon: React.ReactNode; label: string; active?: boolean; badge?: string; onPress?: () => void; s: S }> = ({ icon, label, active, badge, onPress, s }) => (
-  <Pressable style={[s.tab, active && s.tabActive]} {...ripple()} onPress={onPress}>
+  <ScalePressable style={[s.tab, active && s.tabActive]} scaleTo={0.9} {...ripple()} onPress={onPress}>
     {icon}
     <Text style={[s.tabLabel, active && s.tabLabelActive]}>{label}</Text>
     {badge && <View style={s.tabBadge}><Text style={s.tabBadgeText}>{badge}</Text></View>}
-  </Pressable>
+  </ScalePressable>
 );
