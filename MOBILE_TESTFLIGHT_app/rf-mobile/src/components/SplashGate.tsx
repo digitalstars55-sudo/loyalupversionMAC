@@ -66,6 +66,8 @@ export const SplashGate: React.FC<{
 };
 
 const styles = StyleSheet.create({
-  root: { backgroundColor: BG, alignItems: 'center', justifyContent: 'center' },
+  // zIndex/elevation заведомо выше таб-бара (30) и FAB Лояльчика (50),
+  // иначе они «всплывают» поверх заставки (у них явный zIndex, у оверлея нет).
+  root: { backgroundColor: BG, alignItems: 'center', justifyContent: 'center', zIndex: 9999, elevation: 9999 },
   lottie: { width: '100%', height: '100%' },
 });
