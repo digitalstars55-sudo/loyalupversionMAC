@@ -7,7 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft, ChevronRight, Plus, X, Crown, Shield, Eye, UserCheck, UserX, Save,
-  FileText,
+  FileText, Lock,
 } from 'lucide-react-native';
 
 import { C } from '../theme';
@@ -36,11 +36,15 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState<Staff | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  // RBAC: какие роли текущий юзер вправе назначать (с бэка). Пусто = не может управлять.
+  const [manageableRoles, setManageableRoles] = useState<('manager' | 'viewer')[]>([]);
+
+  const canManageStaffMember = (st: Staff) => manageableRoles.includes(st.role as 'manager' | 'viewer');
 
   const load = async () => {
     try {
-      const [staff, br] = await Promise.all([fetchStaff(), fetchBranches()]);
-      setList(staff); setBranches(br);
+      const [staffRes, br] = await Promise.all([fetchStaff(), fetchBranches()]);
+      setList(staffRes.staff); setBranches(br); setManageableRoles(staffRes.manageableRoles);
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
@@ -114,14 +118,16 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
             <FileText size={18} color={C.ink} strokeWidth={2.2} />
           </Pressable>
         )}
-        <Pressable
-          style={[s.backBtn, { backgroundColor: C.purple, borderColor: C.purple }]}
-          {...ripple('rgba(255,255,255,0.22)')}
-          onPress={() => { haptic('light'); setInviteOpen(true); }}
-          accessibilityLabel="Пригласить сотрудника"
-        >
-          <Plus size={18} color={C.surface} strokeWidth={2.4} />
-        </Pressable>
+        {manageableRoles.length > 0 && (
+          <Pressable
+            style={[s.backBtn, { backgroundColor: C.purple, borderColor: C.purple }]}
+            {...ripple('rgba(255,255,255,0.22)')}
+            onPress={() => { haptic('light'); setInviteOpen(true); }}
+            accessibilityLabel="Пригласить сотрудника"
+          >
+            <Plus size={18} color={C.surface} strokeWidth={2.4} />
+          </Pressable>
+        )}
       </View>
 
       <FlatList
@@ -145,14 +151,18 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
             )}
           </View>
         }
-        renderItem={({ item }) => (
-          <StaffCard
-            st={item}
-            s={s}
-            onPress={() => { haptic('light'); setEditing(item); }}
-            onToggleActive={onToggleActive(item)}
-          />
-        )}
+        renderItem={({ item }) => {
+          const canManage = canManageStaffMember(item);
+          return (
+            <StaffCard
+              st={item}
+              s={s}
+              canManage={canManage}
+              onPress={() => { if (!canManage) return; haptic('light'); setEditing(item); }}
+              onToggleActive={onToggleActive(item)}
+            />
+          );
+        }}
       />
 
       {/* Permissions edit modal */}
@@ -160,6 +170,7 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
         staff={editing}
         branches={branches}
         s={s}
+        manageableRoles={manageableRoles}
         onClose={() => setEditing(null)}
         onSave={(next) => { onSavePerms(next); setEditing(null); }}
       />
@@ -169,6 +180,7 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
         visible={inviteOpen}
         branches={branches}
         s={s}
+        manageableRoles={manageableRoles}
         onClose={() => setInviteOpen(false)}
         onInvite={onInvite}
       />
@@ -179,12 +191,13 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
 // ─────────────────────────────────────────────
 const StaffCard: React.FC<{
   st: Staff; s: S;
+  canManage: boolean;
   onPress: () => void;
   onToggleActive: (v: boolean) => void;
-}> = ({ st, s, onPress, onToggleActive }) => (
+}> = ({ st, s, canManage, onPress, onToggleActive }) => (
   <Pressable
     style={[s.staffCard, !st.active && s.staffCardInactive]}
-    {...ripple()}
+    {...(canManage ? ripple() : {})}
     onPress={onPress}
   >
     <View style={[s.staffAvatar, { backgroundColor: avatarColor(st.full_name) }]}>
@@ -208,7 +221,7 @@ const StaffCard: React.FC<{
     </View>
     {st.role === 'owner' ? (
       <Crown size={18} color={C.limeDeep} strokeWidth={2.2} />
-    ) : (
+    ) : canManage ? (
       <Switch
         value={st.active}
         onValueChange={onToggleActive}
@@ -216,6 +229,8 @@ const StaffCard: React.FC<{
         thumbColor={C.surface}
         ios_backgroundColor={C.line}
       />
+    ) : (
+      <Lock size={16} color={C.ink3} strokeWidth={2.2} />
     )}
   </Pressable>
 );
@@ -245,9 +260,10 @@ const PermsModal: React.FC<{
   staff: Staff | null;
   branches: RFBranch[];
   s: S;
+  manageableRoles: ('manager' | 'viewer')[];
   onClose: () => void;
   onSave: (next: Staff) => void;
-}> = ({ staff, branches, s, onClose, onSave }) => {
+}> = ({ staff, branches, s, manageableRoles, onClose, onSave }) => {
   const [role, setRole] = useState<StaffRole>('manager');
   const [perms, setPerms] = useState<StaffPermissions>(DEFAULT_PERMS_BY_ROLE.manager);
   const [branchIds, setBranchIds] = useState<number[]>([]);
@@ -304,7 +320,7 @@ const PermsModal: React.FC<{
               </View>
             ) : (
               <View style={[s.pillsRow, { paddingHorizontal: 0 }]}>
-                {(['manager', 'viewer'] as const).map(role_ => {
+                {(manageableRoles.length ? manageableRoles : (['manager', 'viewer'] as const)).map(role_ => {
                   const active = role === role_;
                   const label = role_ === 'manager' ? 'Управляющий' : 'Только просмотр';
                   return (
@@ -414,20 +430,22 @@ const InviteModal: React.FC<{
   visible: boolean;
   branches: RFBranch[];
   s: S;
+  manageableRoles: ('manager' | 'viewer')[];
   onClose: () => void;
   onInvite: (p: {
     full_name: string; email?: string; phone?: string;
     role: 'manager' | 'viewer'; branch_ids: number[];
   }) => void;
-}> = ({ visible, branches, s, onClose, onInvite }) => {
+}> = ({ visible, branches, s, manageableRoles, onClose, onInvite }) => {
+  const roleOptions = manageableRoles.length ? manageableRoles : (['manager', 'viewer'] as ('manager' | 'viewer')[]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<'manager' | 'viewer'>('manager');
+  const [role, setRole] = useState<'manager' | 'viewer'>(roleOptions[0]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (visible) { setName(''); setEmail(''); setPhone(''); setRole('manager'); }
+    if (visible) { setName(''); setEmail(''); setPhone(''); setRole(roleOptions[0]); }
   }, [visible]);
 
   const valid = name.trim().length >= 3 && (email.includes('@') || phone.length >= 10);
@@ -509,7 +527,7 @@ const InviteModal: React.FC<{
 
             <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, marginTop: 4 }]}>Роль</Text>
             <View style={[s.pillsRow, { paddingHorizontal: 0 }]}>
-              {(['manager', 'viewer'] as const).map(r_ => {
+              {roleOptions.map(r_ => {
                 const active = role === r_;
                 const label = r_ === 'manager' ? 'Управляющий' : 'Только просмотр';
                 return (

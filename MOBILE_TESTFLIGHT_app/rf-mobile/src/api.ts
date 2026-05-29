@@ -1150,14 +1150,18 @@ export async function updateProfile(p: Partial<Profile>): Promise<Profile> {
   return await res.json();
 }
 
-export async function fetchStaff(): Promise<Staff[]> {
-  if (USE_MOCK) { await new Promise(r => setTimeout(r, 250)); return MOCK_STAFF; }
+export async function fetchStaff(): Promise<{ staff: Staff[]; manageableRoles: ('manager' | 'viewer')[] }> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 250));
+    return { staff: MOCK_STAFF, manageableRoles: ['manager', 'viewer'] };
+  }
   const res = await fetch(new URL('/api/v1/staff/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Staff fetch failed: ${res.status}`);
   const data = await res.json();
-  return data.staff ?? [];
+  // manageable_roles — какие роли актор вправе назначать (RBAC, источник правды — бэк)
+  return { staff: data.staff ?? [], manageableRoles: data.manageable_roles ?? [] };
 }
 
 export async function updateStaff(p: Partial<Staff> & { id: number }): Promise<void> {

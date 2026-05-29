@@ -37,10 +37,10 @@ export const AuditLogScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => 
     try {
       const [list, st] = await Promise.all([
         fetchAuditLog({ staff_id: staffFilter ?? undefined }),
-        staff.length > 0 ? Promise.resolve(staff) : fetchStaff(),
+        staff.length > 0 ? Promise.resolve({ staff }) : fetchStaff(),
       ]);
       setEntries(list);
-      if (staff.length === 0) setStaff(st);
+      if (staff.length === 0) setStaff(st.staff);
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
