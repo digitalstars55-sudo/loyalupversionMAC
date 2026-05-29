@@ -4,6 +4,7 @@ import { Home, BarChart3, Star, MessageSquare, MoreHorizontal } from 'lucide-rea
 import { C } from '../theme';
 import { haptic } from '../platform';
 import { Tab } from './Common';
+import { setTourTarget } from '../tourTargets';
 import type { TabKey } from '../types';
 import type { S } from '../styles';
 
@@ -20,8 +21,15 @@ export const TabBar: React.FC<{
   const pick = (k: TabKey) => () => { haptic('light'); onChange(k); };
   const c = (k: TabKey) => active === k ? C.purple : C.ink4;
 
+  const ref = React.useRef<View>(null);
+  const measure = () => {
+    ref.current?.measureInWindow((x, y, width, height) => {
+      if (width > 0) setTourTarget('tabbar', { x, y, width, height });
+    });
+  };
+
   return (
-    <View style={s.tabbar}>
+    <View ref={ref} style={s.tabbar} onLayout={measure}>
       <Tab
         icon={<Home size={20} color={c('home')} strokeWidth={2} />}
         label="Главная" active={active === 'home'} onPress={pick('home')} s={s}

@@ -11,6 +11,7 @@ import { haptic, ripple } from '../platform';
 import { askAssistant, fetchAssistantContext } from '../api';
 import { storage } from '../storage';
 import { runAssistantAction, type AssistantAction } from '../navBridge';
+import { setTourTarget } from '../tourTargets';
 
 const HISTORY_KEY = '@loyalup/loyalchik_history';
 
@@ -61,6 +62,7 @@ export const LoyalchikAssistant: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const scrollRef = useRef<ScrollView>(null);
+  const fabRef = useRef<View>(null);
   const ctxFetched = useRef(false);
   const hydrated = useRef(false);
 
@@ -131,6 +133,10 @@ export const LoyalchikAssistant: React.FC = () => {
     <>
       {/* Плавающая кнопка-маскот */}
       <Pressable
+        ref={fabRef}
+        onLayout={() => fabRef.current?.measureInWindow((x, y, width, height) => {
+          if (width > 0) setTourTarget('loyalchik', { x, y, width, height });
+        })}
         style={st.fab}
         {...ripple('rgba(255,255,255,0.25)')}
         onPress={() => { haptic('medium'); setOpen(true); }}

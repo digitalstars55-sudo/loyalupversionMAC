@@ -70,6 +70,8 @@ import { EngagementAnalyticsScreen } from './src/screens/EngagementAnalyticsScre
 import { TabBar } from './src/components/TabBar';
 import { LoyalchikAssistant } from './src/components/LoyalchikAssistant';
 import { SplashGate } from './src/components/SplashGate';
+import { OnboardingTour } from './src/components/OnboardingTour';
+import { registerTourStarter } from './src/tourTargets';
 
 export { setAuthToken } from './src/api';
 
@@ -232,6 +234,24 @@ function AuthGate() {
   const companies = profile?.companies ?? [];
   const multiTenant = companies.length > 1;
 
+  // Онбординг-тур: авто при первом входе + повтор из «Ещё» (registerTourStarter).
+  const [tourVisible, setTourVisible] = useState(false);
+  const tourChecked = React.useRef(false);
+  useEffect(() => registerTourStarter(() => setTourVisible(true)), []);
+  const finishTour = useCallback(() => {
+    setTourVisible(false);
+    storage.setItem('@loyalup/onboarding_done', '1').catch(() => {});
+  }, []);
+  const inMainApp = !!token && !bootstrapping && !(multiTenant && !activeTenant);
+  useEffect(() => {
+    if (!inMainApp || tourChecked.current) return;
+    tourChecked.current = true;
+    (async () => {
+      const done = await storage.getItem('@loyalup/onboarding_done').catch(() => null);
+      if (!done) setTimeout(() => setTourVisible(true), 700); // дать табам/кнопке измериться
+    })();
+  }, [inMainApp]);
+
   const handleSelectTenant = useCallback((c: TenantCompany) => {
     setApiBase(c.domain);
     setActiveTenant(c);
@@ -266,6 +286,8 @@ function AuthGate() {
         />
         {/* AI Лояльчик — плавает над всеми экранами после входа */}
         <LoyalchikAssistant />
+        {/* Онбординг-тур (первый вход / повтор из «Ещё») — поверх всего */}
+        <OnboardingTour visible={tourVisible} onFinish={finishTour} />
       </>
     );
   }

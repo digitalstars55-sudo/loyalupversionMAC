@@ -12,6 +12,7 @@ import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { makeStyles } from '../styles';
+import { startTour } from '../tourTargets';
 import { AutoReplySettings } from './AutoReplySettings';
 import { ManagerContact } from './ManagerContact';
 import { CampaignsScreen } from './CampaignsScreen';
@@ -318,12 +319,20 @@ export const MoreScreen: React.FC<{
             />
             <MenuRow
               s={s}
-              last
               icon={<HelpCircle size={18} color={C.ink2} strokeWidth={2} />}
               iconBg={C.lineSoft}
               title="Помощь"
               sub="База знаний и контакты"
               onPress={open('help')}
+            />
+            <MenuRow
+              s={s}
+              last
+              icon={<Bot size={18} color={C.purpleDeep} strokeWidth={2} />}
+              iconBg={C.purpleSoft}
+              title="Пройти обучение заново"
+              sub="Лояльчик покажет, что где"
+              onPress={() => { haptic('light'); startTour(); }}
             />
           </View>
         </View>
