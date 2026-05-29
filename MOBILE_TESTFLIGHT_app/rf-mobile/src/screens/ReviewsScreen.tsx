@@ -117,7 +117,12 @@ export const ReviewsScreen: React.FC<{
     onPresetConsumed?.();
   }, [presetFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Deep-link
+  // Deep-link (из пуша). ВАЖНО: список отзывов грузится асинхронно, поэтому
+  // при тапе по пушу эффект сначала срабатывает с пустым/неполным списком.
+  // Потребляем id ТОЛЬКО когда отзыв реально найден и открыт — иначе ждём
+  // загрузки списка (эффект перезапустится при изменении reviews). Раньше
+  // onAutoOpenConsumed вызывался безусловно → id сбрасывался до загрузки и
+  // отзыв не открывался («просто открывает приложение»).
   useEffect(() => {
     if (!autoOpenReviewId) return;
     const target = reviews.find(rev => rev.id === autoOpenReviewId);
@@ -126,8 +131,8 @@ export const ReviewsScreen: React.FC<{
       if (target.has_unread) {
         setReviews(prev => prev.map(x => x.id === target.id ? { ...x, has_unread: false } : x));
       }
+      onAutoOpenConsumed?.();
     }
-    onAutoOpenConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoOpenReviewId, reviews]);
 
