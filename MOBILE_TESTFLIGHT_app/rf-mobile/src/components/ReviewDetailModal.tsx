@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform,
-  TextInput, Alert, ActivityIndicator, FlatList, Dimensions,
+  TextInput, Alert, ActivityIndicator, FlatList, Dimensions, Image, Linking,
 } from 'react-native';
 
 const SCREEN_H = Dimensions.get('window').height;
@@ -387,9 +387,32 @@ const ThreadBubble: React.FC<{ msg: TestimonialMessage; s: S }> = ({ msg, s }) =
         {isAdmin && msg.admin_name && (
           <Text style={s.rvBubbleAdminName}>{msg.admin_name}</Text>
         )}
-        <Text style={[s.rvBubbleText, isAdmin ? s.rvBubbleTextAdmin : s.rvBubbleTextGuest]}>
-          {msg.text}
-        </Text>
+        {!!msg.text && (
+          <Text style={[s.rvBubbleText, isAdmin ? s.rvBubbleTextAdmin : s.rvBubbleTextGuest]}>
+            {msg.text}
+          </Text>
+        )}
+
+        {(msg.attachments ?? []).map((a, i) => {
+          if (a.purged) {
+            return (
+              <Text key={i} style={[s.rvBubbleSource, { fontStyle: 'italic', marginTop: 4 }]}>
+                🖼 фото удалено по сроку хранения
+              </Text>
+            );
+          }
+          if (!a.url) return null;
+          const url = a.url;
+          return (
+            <Pressable key={i} onPress={() => Linking.openURL(url)} style={{ marginTop: 6 }}>
+              <Image
+                source={{ uri: url }}
+                style={{ width: 180, height: 180, borderRadius: 10, backgroundColor: C.line }}
+                resizeMode="cover"
+              />
+            </Pressable>
+          );
+        })}
 
         {msg.rating != null && (
           <View style={s.rvBubbleStarsRow}>

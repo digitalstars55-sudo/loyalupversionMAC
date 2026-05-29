@@ -67,6 +67,14 @@ export type ReviewSource = 'APP' | 'VK_MESSAGE';
 // Источник сообщения внутри переписки по отзыву
 export type TestimonialMessageSource = 'APP' | 'VK_MESSAGE' | 'ADMIN_REPLY';
 
+// Вложение к сообщению (фото из ВК). url отдаёт бэк уже абсолютным.
+// purged=true → файл удалён по сроку хранения (90 дн), url=null.
+export interface ReviewAttachment {
+  type: 'photo' | string;
+  url: string | null;
+  purged: boolean;
+}
+
 export interface TestimonialMessage {
   id: number;
   source: TestimonialMessageSource;
@@ -77,6 +85,7 @@ export interface TestimonialMessage {
   table_number?: number;     // если оставили со стола
   // только для ADMIN_REPLY: кто отправил
   admin_name?: string;
+  attachments?: ReviewAttachment[];  // фото из ВК
 }
 
 // Кто-то из коллег сейчас работает с отзывом (presence)
