@@ -46,6 +46,8 @@ import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews
 import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
 import { registerAssistantNav } from './src/navBridge';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import ReAnimated, { FadeIn } from 'react-native-reanimated';
 import { OfflineBanner } from './src/components/OfflineBanner';
 
 import { AuthScreen } from './src/screens/AuthScreen';
@@ -103,15 +105,17 @@ export default function App() {
   if (!fontsLoaded) return null;
 
   return (
-    <SafeAreaProvider>
-      <View style={{ flex: 1, backgroundColor: C.paper }}>
-        <OfflineBanner />
-        <AuthGate />
-      </View>
-      {!splashGone && (
-        <SplashGate onReady={hideNativeSplash} onDone={() => setSplashGone(true)} />
-      )}
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <View style={{ flex: 1, backgroundColor: C.paper }}>
+          <OfflineBanner />
+          <AuthGate />
+        </View>
+        {!splashGone && (
+          <SplashGate onReady={hideNativeSplash} onDone={() => setSplashGone(true)} />
+        )}
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -605,6 +609,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName }: {
 
   return (
     <View style={{ flex: 1 }}>
+      <ReAnimated.View key={tab} entering={FadeIn.duration(190)} style={{ flex: 1 }}>
       {tab === 'home'      && (
         <HomeScreen
           reviews={reviews}
@@ -660,6 +665,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName }: {
           onSubScreenConsumed={() => setPendingOpenMoreScreen(null)}
         />
       )}
+      </ReAnimated.View>
 
       <TabBar
         active={tab}

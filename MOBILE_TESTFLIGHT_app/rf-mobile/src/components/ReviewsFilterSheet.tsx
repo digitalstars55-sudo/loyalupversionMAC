@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Modal, View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { X, RotateCcw, Check, ArrowDownUp } from 'lucide-react-native';
 
 import { C } from '../theme';
 import { ripple, haptic } from '../platform';
+import { SheetModal } from './SheetModal';
 import type { Sentiment, ReviewSource } from '../types';
 import type { S } from '../styles';
 
@@ -99,11 +100,7 @@ export const ReviewsFilterSheet: React.FC<{
   const totalActive = useMemo(() => activeFilterCount(draft), [draft]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.modalRoot}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, s.modalSheetTall]}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={visible} onClose={onClose} maxHeightPct={0.9}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>Отзывы</Text>
@@ -114,7 +111,7 @@ export const ReviewsFilterSheet: React.FC<{
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 }}>
             {/* Sentiment — мульти-выбор */}
             <Text style={[s.menuSectionTitle, { paddingHorizontal: 0 }]}>Тональность</Text>
             <View style={[s.pillsRow, { paddingHorizontal: 0 }]}>
@@ -209,8 +206,6 @@ export const ReviewsFilterSheet: React.FC<{
               </Text>
             </Pressable>
           </View>
-        </View>
-      </View>
-    </Modal>
+    </SheetModal>
   );
 };
