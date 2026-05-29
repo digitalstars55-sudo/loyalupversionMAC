@@ -4,6 +4,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring, runOnJS,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../theme';
 
 const SPRING = { damping: 24, stiffness: 240, mass: 0.7 } as const;
@@ -18,6 +19,7 @@ export const SheetModal: React.FC<{
   closeThreshold?: number;      // px свайпа вниз для закрытия
 }> = ({ visible, onClose, children, maxHeightPct = 0.92, closeThreshold = 110 }) => {
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [render, setRender] = React.useState(visible);
   const translateY = useSharedValue(height);
   const progress = useSharedValue(0); // 0 закрыто, 1 открыто (для backdrop)
@@ -74,7 +76,7 @@ export const SheetModal: React.FC<{
           <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
         </Animated.View>
         <GestureDetector gesture={pan}>
-          <Animated.View style={[styles.sheet, { maxHeight: height * maxHeightPct }, sheetStyle]}>
+          <Animated.View style={[styles.sheet, { maxHeight: height * maxHeightPct, paddingBottom: Math.max(insets.bottom, 12) }, sheetStyle]}>
             <View style={styles.handle} />
             {children}
           </Animated.View>

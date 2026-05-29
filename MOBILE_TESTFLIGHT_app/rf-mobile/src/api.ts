@@ -1224,10 +1224,12 @@ export async function updateStaff(p: Partial<Staff> & { id: number }): Promise<v
   if (!res.ok) throw new Error(`Staff save failed: ${res.status}`);
 }
 
+export type InvitedStaff = Staff & { login?: string; temp_password?: string; invitation_token?: string };
+
 export async function inviteStaff(p: {
   full_name: string; email?: string; phone?: string;
   role: 'manager' | 'viewer'; branch_ids: number[];
-}): Promise<Staff> {
+}): Promise<InvitedStaff> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 400));
     const { DEFAULT_PERMS_BY_ROLE } = await import('./mocks');
@@ -1242,6 +1244,8 @@ export async function inviteStaff(p: {
       permissions: DEFAULT_PERMS_BY_ROLE[p.role],
       branch_ids: p.branch_ids,
       invited_at: new Date().toISOString(),
+      login: 'olga.ivanova',
+      temp_password: 'demoPass123',
     };
   }
   const res = await fetch(new URL('/api/v1/staff/invite/', getApiBase()).toString(), {
@@ -1251,6 +1255,18 @@ export async function inviteStaff(p: {
   });
   if (!res.ok) throw new Error(`Invite failed: ${res.status}`);
   return await res.json();
+}
+
+export async function deleteStaff(id: number): Promise<void> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return; }
+  const res = await fetch(new URL(`/api/v1/staff/${id}/`, getApiBase()).toString(), {
+    method: 'DELETE',
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || `Delete failed: ${res.status}`);
+  }
 }
 
 export async function fetchSubscription(): Promise<SubscriptionStatus> {

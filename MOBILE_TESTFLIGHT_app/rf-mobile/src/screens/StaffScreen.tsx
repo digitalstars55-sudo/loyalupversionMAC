@@ -1,20 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, RefreshControl, Switch, Modal, ScrollView,
-  TextInput, Alert, ActivityIndicator,
+  TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ChevronLeft, ChevronRight, Plus, X, Crown, Shield, Eye, UserCheck, UserX, Save,
-  FileText, Lock,
+  FileText, Lock, Trash2,
 } from 'lucide-react-native';
 
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple, formatPhone } from '../platform';
 import { avatarColor, initials, relativeTime } from '../helpers';
-import { fetchStaff, updateStaff, inviteStaff, fetchBranches } from '../api';
+import { fetchStaff, updateStaff, inviteStaff, deleteStaff, fetchBranches } from '../api';
 import { DEFAULT_PERMS_BY_ROLE } from '../mocks';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
@@ -86,12 +86,48 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
       const created = await inviteStaff(data);
       setList(prev => [...prev, created]);
       haptic('success');
-      Alert.alert('Готово', `Приглашение для ${data.full_name} отправлено.`);
       setInviteOpen(false);
+      const login = created.login;
+      const pwd = created.temp_password;
+      if (login && pwd) {
+        Alert.alert(
+          'Сотрудник создан ✅',
+          `Передайте эти данные сотруднику — он войдёт в приложение и сможет сменить пароль. Показываем только сейчас:\n\n` +
+          `Логин:  ${login}\nПароль:  ${pwd}\n\n` +
+          `Письма/SMS не отправляются автоматически — передайте доступ лично.`,
+          [{ text: 'Записал(а)', style: 'default' }],
+        );
+      } else {
+        Alert.alert('Готово', `Сотрудник ${data.full_name} создан.`);
+      }
     } catch (e: any) {
       haptic('error');
       Alert.alert('Ошибка', e?.message ?? 'Не удалось пригласить');
     }
+  };
+
+  const onDeleteStaff = (st: Staff) => {
+    Alert.alert(
+      'Удалить сотрудника?',
+      `${st.full_name} потеряет доступ к этой сети. Действие можно повторить приглашением.`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить', style: 'destructive',
+          onPress: async () => {
+            const prev = list;
+            setList(p => p.filter(x => x.id !== st.id));
+            setEditing(null);
+            try { await deleteStaff(st.id); haptic('success'); }
+            catch (e: any) {
+              setList(prev); // откат
+              haptic('error');
+              Alert.alert('Ошибка', e?.message ?? 'Не удалось удалить');
+            }
+          },
+        },
+      ],
+    );
   };
 
   const activeCount = list.filter(p => p.active).length;
@@ -173,6 +209,7 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
         manageableRoles={manageableRoles}
         onClose={() => setEditing(null)}
         onSave={(next) => { onSavePerms(next); setEditing(null); }}
+        onDelete={onDeleteStaff}
       />
 
       {/* Invite modal */}
@@ -263,7 +300,8 @@ const PermsModal: React.FC<{
   manageableRoles: ('manager' | 'viewer')[];
   onClose: () => void;
   onSave: (next: Staff) => void;
-}> = ({ staff, branches, s, manageableRoles, onClose, onSave }) => {
+  onDelete: (st: Staff) => void;
+}> = ({ staff, branches, s, manageableRoles, onClose, onSave, onDelete }) => {
   const [role, setRole] = useState<StaffRole>('manager');
   const [perms, setPerms] = useState<StaffPermissions>(DEFAULT_PERMS_BY_ROLE.manager);
   const [branchIds, setBranchIds] = useState<number[]>([]);
@@ -379,6 +417,23 @@ const PermsModal: React.FC<{
                 </Text>
               </>
             )}
+
+            {!isOwner && (
+              <Pressable
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  marginTop: 22, paddingVertical: 13, borderRadius: 14,
+                  backgroundColor: '#FDECEC', borderWidth: 1, borderColor: '#F3C7C7',
+                }}
+                {...ripple('rgba(220,38,38,0.12)')}
+                onPress={() => onDelete(staff)}
+              >
+                <Trash2 size={15} color="#dc2626" strokeWidth={2.2} />
+                <Text style={{ fontFamily: 'Manrope_700Bold', fontSize: 14, color: '#dc2626', marginLeft: 7 }}>
+                  Удалить сотрудника
+                </Text>
+              </Pressable>
+            )}
           </ScrollView>
 
           {!isOwner && (
@@ -467,7 +522,10 @@ const InviteModal: React.FC<{
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.modalRoot}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={s.modalRoot}
+      >
         <Pressable style={s.modalBackdrop} onPress={onClose} />
         <View style={s.modalSheet}>
           <View style={s.modalHandle} />
@@ -570,7 +628,7 @@ const InviteModal: React.FC<{
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
