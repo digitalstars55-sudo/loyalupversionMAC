@@ -67,6 +67,7 @@ import { BirthdaysScreen } from './src/screens/BirthdaysScreen';
 import { EngagementAnalyticsScreen } from './src/screens/EngagementAnalyticsScreen';
 import { TabBar } from './src/components/TabBar';
 import { LoyalchikAssistant } from './src/components/LoyalchikAssistant';
+import { SplashGate } from './src/components/SplashGate';
 
 export { setAuthToken } from './src/api';
 
@@ -91,20 +92,25 @@ export default function App() {
 
   useEffect(() => { checkAndApplyUpdate(); }, []);
 
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) await SplashScreen.hideAsync();
-  }, [fontsLoaded]);
+  const [splashGone, setSplashGone] = useState(false);
 
-  useEffect(() => { onLayoutRootView(); }, [onLayoutRootView]);
+  // Нативный splash прячем не сразу, а когда Lottie-оверлей уже на экране —
+  // иначе между нативной заставкой и анимацией мелькнёт пустой кадр.
+  const hideNativeSplash = useCallback(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   if (!fontsLoaded) return null;
 
   return (
     <SafeAreaProvider>
-      <View style={{ flex: 1, backgroundColor: C.paper }} onLayout={onLayoutRootView}>
+      <View style={{ flex: 1, backgroundColor: C.paper }}>
         <OfflineBanner />
         <AuthGate />
       </View>
+      {!splashGone && (
+        <SplashGate onReady={hideNativeSplash} onDone={() => setSplashGone(true)} />
+      )}
     </SafeAreaProvider>
   );
 }

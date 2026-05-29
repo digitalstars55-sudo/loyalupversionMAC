@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, Pressable, TextInput, ScrollView, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert, Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -81,10 +81,11 @@ export const AuthScreen: React.FC<{
         >
           {/* Logo */}
           <View style={s.authLogo}>
-            <View style={s.authLogoIcon}>
-              <Text style={{ fontFamily: 'Manrope_800ExtraBold', fontSize: 28, color: C.surface, letterSpacing: -1 }}>Л</Text>
-            </View>
-            <Text style={s.authLogoText}>ЛоялUP</Text>
+            <Image
+              source={require('../../assets/LoyalUpLogo.png')}
+              style={{ width: 200, height: 157, resizeMode: 'contain' }}
+              accessibilityLabel="ЛоялUP"
+            />
           </View>
 
           <Text style={s.authTitle}>Вход в кабинет</Text>

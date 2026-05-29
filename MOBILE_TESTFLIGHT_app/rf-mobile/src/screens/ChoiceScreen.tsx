@@ -30,10 +30,11 @@ export const ChoiceScreen: React.FC<{
       >
         {/* Hero */}
         <View style={s.hero}>
-          <View style={s.logoMark}>
-            <Text style={s.logoMarkText}>Л</Text>
-          </View>
-          <Text style={s.brand}>ЛоялUP</Text>
+          <Image
+            source={require('../../assets/LoyalUpLogo.png')}
+            style={{ width: 200, height: 157, resizeMode: 'contain', marginBottom: 8 }}
+            accessibilityLabel="ЛоялUP"
+          />
           <Text style={s.tagline}>
             Программа лояльности на автопилоте — для кафе, баров, кофеен
           </Text>
