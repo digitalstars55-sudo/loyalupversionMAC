@@ -1,13 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, Pressable, Modal, ScrollView, TextInput, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Animated, Easing,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
+import LottieView from 'lottie-react-native';
 import { X, Send } from 'lucide-react-native';
 
 import { C, F } from '../theme';
 import { haptic, ripple } from '../platform';
 import { askAssistant } from '../api';
+
+// Lottie-маскот «Лояльчик» (космонавт-робот). Цвета совпадают с темой приложения.
+const IDLE_ANIM = require('../assets/loyalchik/loyalchik_idle.json');
+const GREETING_ANIM = require('../assets/loyalchik/loyalchik_greeting.json');
+const THINKING_ANIM = require('../assets/loyalchik/loyalchik_thinking.json');
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -26,18 +32,18 @@ export const LoyalchikAssistant: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  // Анимация парения плейсхолдер-маскота (заменится Lottie idle)
-  const floatY = useRef(new Animated.Value(0)).current;
+  // При открытии чата маскот «прилетает» (greeting), потом — idle.
+  const [headerGreeting, setHeaderGreeting] = useState(false);
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatY, { toValue: -6, duration: 1100, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(floatY, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [floatY]);
+    if (!open) return;
+    setHeaderGreeting(true);
+    const t = setTimeout(() => setHeaderGreeting(false), 1500);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  // Анимация для маскота в шапке: думает → idle/приветствие.
+  const headerSource = loading ? THINKING_ANIM : (headerGreeting ? GREETING_ANIM : IDLE_ANIM);
+  const headerLoop = !(headerGreeting && !loading); // greeting — один проход
 
   const send = async () => {
     const q = input.trim();
@@ -68,10 +74,7 @@ export const LoyalchikAssistant: React.FC = () => {
         onPress={() => { haptic('medium'); setOpen(true); }}
         accessibilityLabel="Открыть AI-ассистента Лояльчика"
       >
-        <Animated.View style={[st.mascot, { transform: [{ translateY: floatY }] }]}>
-          {/* TODO: заменить на <LottieView> когда придёт анимация персонажа */}
-          <Text style={st.mascotEmoji}>🚀</Text>
-        </Animated.View>
+        <LottieView source={IDLE_ANIM} autoPlay loop style={{ width: 50, height: 50 }} />
       </Pressable>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)} statusBarTranslucent>
@@ -79,7 +82,9 @@ export const LoyalchikAssistant: React.FC = () => {
           <Pressable style={st.backdrop} onPress={() => setOpen(false)} />
           <View style={st.sheet}>
             <View style={st.header}>
-              <View style={st.headerMascot}><Text style={{ fontSize: 18 }}>🚀</Text></View>
+              <View style={st.headerMascot}>
+                <LottieView source={headerSource} autoPlay loop={headerLoop} style={{ width: 38, height: 38 }} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={st.title}>AI Лояльчик</Text>
                 <Text style={st.subtitle}>Помощник по системе</Text>
