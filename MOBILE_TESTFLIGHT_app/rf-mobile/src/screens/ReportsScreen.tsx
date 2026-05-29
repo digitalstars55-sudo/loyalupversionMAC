@@ -25,6 +25,21 @@ import type { S } from '../styles';
 // REPORTS SCREEN — расширенный отчёт по программе лояльности (PDF-выгрузка)
 // Аналог /analytics/report/ в вебе.
 // ════════════════════════════════════════════════════════════════════
+// Разделы PDF-отчёта (1:1 с бэком, LU-11). По умолчанию включены все.
+const REPORT_SECTIONS: [number, string][] = [
+  [1,  'Ключевые метрики'],
+  [2,  'Рост клиентской базы'],
+  [3,  'Индекс оцифровки'],
+  [4,  'Источники подключения'],
+  [5,  'Вовлечение гостей'],
+  [6,  'Коммуникации с гостями'],
+  [7,  'Отзывы гостей'],
+  [8,  'RF-матрица'],
+  [9,  'Миграция сегментов'],
+  [10, 'Итоговые выводы'],
+  [11, 'Рекомендации'],
+];
+
 export const ReportsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
@@ -36,6 +51,12 @@ export const ReportsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // Какие разделы НЕ включать в PDF (номера секций). Пусто = все включены.
+  const [hiddenSections, setHiddenSections] = useState<number[]>([]);
+  const toggleSection = (n: number) => {
+    haptic('light');
+    setHiddenSections(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n]);
+  };
 
   const load = async () => {
     try {
@@ -57,7 +78,7 @@ export const ReportsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     haptic('medium');
     setExporting(true);
     try {
-      const url = await getLoyaltyReportPdfUrl({ branch_ids: branchId === 0 ? [] : [branchId] });
+      const url = await getLoyaltyReportPdfUrl({ branch_ids: branchId === 0 ? [] : [branchId], hide: hiddenSections });
       if (Platform.OS === 'web') {
         window.open(url, '_blank');
       } else {
@@ -120,6 +141,21 @@ export const ReportsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             </ScrollView>
           </View>
         )}
+
+        {/* Разделы в PDF — какие включить в выгрузку (как в вебе, LU-11) */}
+        <View style={s.filterBlock}>
+          <Text style={s.filterLabel}>Разделы в PDF</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: r.pad }}>
+            {REPORT_SECTIONS.map(([n, label]) => (
+              <Chip
+                key={n}
+                active={!hiddenSections.includes(n)}
+                onPress={() => toggleSection(n)}
+                s={s}
+              >{label}</Chip>
+            ))}
+          </View>
+        </View>
 
         {loading || !report ? (
           <View style={{ paddingHorizontal: r.pad, gap: 10 }}>

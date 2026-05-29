@@ -1016,6 +1016,7 @@ export async function getLoyaltyReportPdfUrl(p: {
   branch_ids?: number[];
   start_date?: string;
   end_date?: string;
+  hide?: number[];   // номера секций (1..11), которые НЕ включать в PDF (LU-11)
 }): Promise<string> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 300)); return 'https://pdf.example.ru/loyalty-report.pdf'; }
   const url = new URL('/analytics/report/', getApiBase());
@@ -1025,6 +1026,7 @@ export async function getLoyaltyReportPdfUrl(p: {
     url.searchParams.set('start', p.start_date);
     url.searchParams.set('end',   p.end_date);
   }
+  if (p.hide?.length) url.searchParams.set('hide', p.hide.join(','));
   // При наличии токена — прокидываем как query (или используем cookies)
   const token = getAuthToken();
   if (token) url.searchParams.set('token', token);
