@@ -945,6 +945,27 @@ export async function appendReviewMessage(p: { review_id: number; text: string }
 }
 
 // ════════════════════════════════════════════════════════════════════
+// AI-АССИСТЕНТ «Лояльчик»
+// ════════════════════════════════════════════════════════════════════
+export async function askAssistant(p: {
+  question: string;
+  history?: { role: 'user' | 'assistant'; content: string }[];
+}): Promise<string> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 600));
+    return 'Это демо-режим Лояльчика 🚀 На проде я отвечаю на вопросы по системе.';
+  }
+  const res = await fetch(new URL('/api/v1/assistant/ask/', getApiBase()).toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ question: p.question, history: p.history ?? [] }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `Assistant failed: ${res.status}`);
+  return data.answer ?? '';
+}
+
+// ════════════════════════════════════════════════════════════════════
 // GUEST DETAIL
 // ════════════════════════════════════════════════════════════════════
 export async function fetchGuestDetail(p: { vk_id: string }): Promise<GuestDetail> {

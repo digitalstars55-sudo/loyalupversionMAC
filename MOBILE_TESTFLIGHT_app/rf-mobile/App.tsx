@@ -65,6 +65,7 @@ import { SearchScreen } from './src/screens/SearchScreen';
 import { BirthdaysScreen } from './src/screens/BirthdaysScreen';
 import { EngagementAnalyticsScreen } from './src/screens/EngagementAnalyticsScreen';
 import { TabBar } from './src/components/TabBar';
+import { LoyalchikAssistant } from './src/components/LoyalchikAssistant';
 
 export { setAuthToken } from './src/api';
 
@@ -245,12 +246,16 @@ function AuthGate() {
       );
     }
     return (
-      <Root
-        key={activeTenant?.domain || profile?.tenant_domain || 'default'}
-        onLogout={onLogout}
-        onSwitchTenant={multiTenant ? handleSwitchTenant : undefined}
-        currentTenantName={activeTenant?.name || profile?.tenant_name || undefined}
-      />
+      <>
+        <Root
+          key={activeTenant?.domain || profile?.tenant_domain || 'default'}
+          onLogout={onLogout}
+          onSwitchTenant={multiTenant ? handleSwitchTenant : undefined}
+          currentTenantName={activeTenant?.name || profile?.tenant_name || undefined}
+        />
+        {/* AI Лояльчик — плавает над всеми экранами после входа */}
+        <LoyalchikAssistant />
+      </>
     );
   }
 
