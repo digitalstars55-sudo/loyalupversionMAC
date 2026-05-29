@@ -75,12 +75,15 @@ export const SheetModal: React.FC<{
         <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
         </Animated.View>
-        <GestureDetector gesture={pan}>
-          <Animated.View style={[styles.sheet, { maxHeight: height * maxHeightPct, paddingBottom: Math.max(insets.bottom, 12) }, sheetStyle]}>
-            <View style={styles.handle} />
-            {children}
-          </Animated.View>
-        </GestureDetector>
+        <Animated.View style={[styles.sheet, { maxHeight: height * maxHeightPct, paddingBottom: Math.max(insets.bottom, 12) }, sheetStyle]}>
+          {/* Жест свайпа — только на «ручке», чтобы не конфликтовать со скроллом тела */}
+          <GestureDetector gesture={pan}>
+            <View style={styles.handleZone}>
+              <View style={styles.handle} />
+            </View>
+          </GestureDetector>
+          {children}
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -96,10 +99,9 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     overflow: 'hidden',
   },
+  handleZone: { paddingTop: 4, paddingBottom: 10, alignItems: 'center' },
   handle: {
-    alignSelf: 'center',
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: 'rgba(0,0,0,0.18)',
-    marginBottom: 6,
   },
 });

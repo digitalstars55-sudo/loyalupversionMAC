@@ -38,6 +38,8 @@ export const formatPhone = (phone: string): string =>
   phone.replace(/^(\+\d)(\d{3})(\d{3})(\d{2})(\d{2})$/, '$1 $2 $3-$4-$5');
 
 // Живая маска ввода РФ-номера: что бы ни ввели → «+7 (999) 123-45-67».
+// ВАЖНО: не добавляем хвостовой разделитель, пока за ним нет цифры — иначе
+// backspace по разделителю не срабатывает (маска тут же его возвращает).
 export const maskRuPhoneInput = (input: string): string => {
   let d = input.replace(/\D/g, '');
   if (d.startsWith('8')) d = '7' + d.slice(1);
@@ -46,8 +48,7 @@ export const maskRuPhoneInput = (input: string): string => {
   const a = d.slice(1); // до 10 цифр после кода
   if (!a) return d ? '+7' : '';
   let out = '+7 (' + a.slice(0, 3);
-  if (a.length >= 3) out += ')';
-  if (a.length > 3) out += ' ' + a.slice(3, 6);
+  if (a.length > 3) out += ') ' + a.slice(3, 6);
   if (a.length > 6) out += '-' + a.slice(6, 8);
   if (a.length > 8) out += '-' + a.slice(8, 10);
   return out;

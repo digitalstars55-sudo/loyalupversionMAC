@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, Pressable, Modal, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { X as XIcon, ChevronRight } from 'lucide-react-native';
 import { C } from '../theme';
 import { ripple } from '../platform';
+import { SheetModal } from './SheetModal';
 import { fmtNum, cellEdgeColor } from '../helpers';
 import { SEG } from '../mocks';
 import type { RFCell } from '../types';
@@ -31,11 +32,7 @@ export const LegendSheet: React.FC<{
   }, [cells]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.modalRoot}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, { maxHeight: '85%' }]}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={visible} onClose={onClose} maxHeightPct={0.85}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>ПАМЯТКА</Text>
@@ -46,7 +43,7 @@ export const LegendSheet: React.FC<{
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
             {list.map(({ key, info, cell }) => {
               const [rN, fN] = key.split('_').map(Number);
               const edge = cellEdgeColor(rN, fN);
@@ -72,8 +69,6 @@ export const LegendSheet: React.FC<{
               Тап на сегмент — откроется детали ниже на главном экране.
             </Text>
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </SheetModal>
   );
 };

@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Pressable, Modal, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, FlatList, ActivityIndicator } from 'react-native';
 import { X as XIcon, Users } from 'lucide-react-native';
 import { C } from '../theme';
 import { ripple } from '../platform';
+import { SheetModal } from './SheetModal';
 import { fmtNum } from '../helpers';
 import type { RFCell, SegmentInfo, Guest } from '../types';
 import type { S } from '../styles';
@@ -22,12 +23,7 @@ export const GuestListModal: React.FC<{
   if (!info || !cell) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.modalRoot}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, s.modalSheetTall]}>
-          <View style={s.modalHandle} />
-
+    <SheetModal visible={visible} onClose={onClose} maxHeightPct={0.85}>
           <View style={s.modalHeader}>
             <Text style={s.detailEmoji}>{info.emoji}</Text>
             <View style={{ flex: 1 }}>
@@ -58,6 +54,7 @@ export const GuestListModal: React.FC<{
             <FlatList
               data={guests}
               keyExtractor={(g) => g.vk_id}
+              style={{ flexShrink: 1 }}
               contentContainerStyle={s.guestsListContent}
               ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
               showsVerticalScrollIndicator={false}
@@ -94,8 +91,6 @@ export const GuestListModal: React.FC<{
               )}
             />
           )}
-        </View>
-      </View>
-    </Modal>
+    </SheetModal>
   );
 };
