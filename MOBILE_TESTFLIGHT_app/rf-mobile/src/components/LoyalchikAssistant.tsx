@@ -148,7 +148,7 @@ export const LoyalchikAssistant: React.FC = () => {
       </Pressable>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)} statusBarTranslucent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={st.modalRoot}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0} style={st.modalRoot}>
           <Pressable style={st.backdrop} onPress={() => setOpen(false)} />
           <View style={st.sheet}>
             <View style={st.header}>
@@ -312,7 +312,7 @@ const st = {
     alignItems: 'flex-end' as const,
     gap: 8,
     padding: 12,
-    paddingBottom: 24,
+    paddingBottom: 36,
     borderTopWidth: 1,
     borderTopColor: C.line,
     backgroundColor: C.surface,

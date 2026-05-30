@@ -85,7 +85,7 @@ export const QuestsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           <View>
             {/* Branch filter */}
             <View style={[s.filterBlock, { paddingHorizontal: 0, marginHorizontal: -r.pad + 0 }]}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.chipsRow, { paddingHorizontal: r.pad }]}>
                 <Chip active={branchId === 0} onPress={() => setBranchId(0)} s={s}>Все</Chip>
                 {branches.filter(b => b.id !== 0).map(b => (
                   <Chip key={b.id} active={branchId === b.id} onPress={() => setBranchId(b.id)} s={s}>

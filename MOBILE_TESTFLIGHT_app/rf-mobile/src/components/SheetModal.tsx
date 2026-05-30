@@ -17,7 +17,8 @@ export const SheetModal: React.FC<{
   children: React.ReactNode;
   maxHeightPct?: number;        // доля высоты экрана (0..1)
   closeThreshold?: number;      // px свайпа вниз для закрытия
-}> = ({ visible, onClose, children, maxHeightPct = 0.92, closeThreshold = 110 }) => {
+  fullHeight?: boolean;         // фикс. высота=maxHeightPct*window (для чат-модалок с FlatList)
+}> = ({ visible, onClose, children, maxHeightPct = 0.92, closeThreshold = 110, fullHeight = false }) => {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [render, setRender] = React.useState(visible);
@@ -78,7 +79,7 @@ export const SheetModal: React.FC<{
         <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
         </Animated.View>
-        <Animated.View style={[styles.sheet, { maxHeight: height * maxHeightPct, paddingBottom: Math.max(insets.bottom, 12) }, sheetStyle]}>
+        <Animated.View style={[styles.sheet, { maxHeight: height * maxHeightPct, height: fullHeight ? height * maxHeightPct : undefined, paddingBottom: Math.max(insets.bottom, 12) }, sheetStyle]}>
           {/* Жест свайпа — только на «ручке», чтобы не конфликтовать со скроллом тела */}
           <GestureDetector gesture={pan}>
             <View style={styles.handleZone}>

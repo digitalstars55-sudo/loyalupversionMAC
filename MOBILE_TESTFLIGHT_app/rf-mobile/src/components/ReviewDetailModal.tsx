@@ -192,7 +192,7 @@ export const ReviewDetailModal: React.FC<{
   };
 
   return (
-    <SheetModal visible={visible} onClose={onClose} maxHeightPct={0.94}>
+    <SheetModal visible={visible} onClose={onClose} maxHeightPct={0.94} fullHeight>
         <View style={{ flex: 1 }}>
           {/* Header */}
           <View style={s.rvDetailHeader}>

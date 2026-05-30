@@ -2166,9 +2166,9 @@ export function makeStyles(r: Resp) {
       alignItems: 'center', justifyContent: 'center',
     },
 
-    // FAB add
+    // FAB add (поднят над таб-баром: r.fabBottom + 28)
     fabAdd: {
-      position: 'absolute', right: pad, bottom: r.fabBottom,
+      position: 'absolute', right: pad, bottom: r.fabBottom + 28,
       flexDirection: 'row', alignItems: 'center', gap: 8,
       paddingHorizontal: 18, paddingVertical: 14, borderRadius: 50, overflow: 'hidden',
       backgroundColor: C.purple,
