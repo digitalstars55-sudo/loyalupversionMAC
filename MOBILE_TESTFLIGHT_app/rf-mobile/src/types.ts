@@ -61,7 +61,10 @@ export type FilterChipKey = 'all' | 'hot' | 'vip' | 'fresh';
 // REVIEWS
 // ════════════════════════════════════════════════════════════════════
 
-export type Sentiment = 'POSITIVE' | 'NEGATIVE' | 'PARTIALLY_NEGATIVE' | 'NEUTRAL' | 'SPAM' | 'PENDING';
+// Backend хранит 'WAITING' (TextChoices.WAITING) для непроанализированных,
+// бэк-сериализатор MobileReviewSerializer мапит WAITING → PENDING.
+// Тип принимает оба значения на случай, если где-то WAITING просочится напрямую.
+export type Sentiment = 'POSITIVE' | 'NEGATIVE' | 'PARTIALLY_NEGATIVE' | 'NEUTRAL' | 'SPAM' | 'PENDING' | 'WAITING';
 export type ReviewSource = 'APP' | 'VK_MESSAGE';
 
 // Источник сообщения внутри переписки по отзыву

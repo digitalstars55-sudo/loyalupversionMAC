@@ -37,14 +37,18 @@ export const segmentPriority = (cell: RFCell): number => {
 };
 
 // ── Sentiment meta ─────────────────────────────────────
-export const sentimentMeta = (s: Sentiment): { label: string; color: string; bg: string } => {
+export const sentimentMeta = (s: Sentiment | string | null | undefined): { label: string; color: string; bg: string } => {
   switch (s) {
     case 'POSITIVE':            return { label: 'Позитивный',     color: C.good,   bg: C.goodSoft };
     case 'NEGATIVE':            return { label: 'Негативный',     color: C.warn,   bg: C.warnSoft };
     case 'PARTIALLY_NEGATIVE':  return { label: 'Частично негат.', color: C.watch,  bg: C.watchSoft };
     case 'NEUTRAL':             return { label: 'Нейтральный',    color: C.ink3,   bg: C.lineSoft };
     case 'SPAM':                return { label: 'Спам',           color: C.ink4,   bg: C.lineSoft };
-    case 'PENDING':             return { label: 'В обработке',    color: C.purple, bg: C.purpleSoft };
+    case 'PENDING':
+    case 'WAITING':             return { label: 'В обработке',    color: C.purple, bg: C.purpleSoft };
+    // Любое неизвестное значение (включая null/undefined из бэка с новыми choices) —
+    // не валим экран Отзывов. Раньше undefined возвращался → меньше .bg → крах.
+    default:                    return { label: 'В обработке',    color: C.purple, bg: C.purpleSoft };
   }
 };
 
@@ -53,15 +57,17 @@ export const sourceLabel = (src: ReviewSource): string =>
 
 // Цвет аватара по имени — стабильный hash
 const AVATAR_COLORS = [C.purple, C.good, C.watch, C.warn, C.limeDeep, C.ink2];
-export const avatarColor = (name: string): string => {
+export const avatarColor = (name: string | null | undefined): string => {
+  const n = name || '?';
   let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h << 5) - h + name.charCodeAt(i);
+  for (let i = 0; i < n.length; i++) h = (h << 5) - h + n.charCodeAt(i);
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 };
 
-export const initials = (name: string): string => {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return '?';
+export const initials = (name: string | null | undefined): string => {
+  const n = (name || '').trim();
+  if (!n) return '?';
+  const parts = n.split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 };
