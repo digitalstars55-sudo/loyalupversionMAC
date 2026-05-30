@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, Pressable, FlatList, RefreshControl, Alert, TextInput, Modal,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image,
+  View, Text, Pressable, FlatList, RefreshControl, Alert, TextInput,
+  ActivityIndicator, ScrollView, Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { fetchPromotions, fetchBranches, savePromotion, deletePromotion } from '
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
 import { ImagePickerField } from '../components/ImagePickerField';
+import { SheetModal } from '../components/SheetModal';
 import type { Promotion, RFBranch } from '../types';
 import type { S } from '../styles';
 
@@ -206,11 +207,7 @@ const PromoFormModal: React.FC<{
   };
 
   return (
-    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalRoot}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, { maxHeight: '92%' }]}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={isOpen} onClose={onClose} maxHeightPct={0.92}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>{isNew ? 'Создать' : 'Редактировать'}</Text>
@@ -221,7 +218,7 @@ const PromoFormModal: React.FC<{
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingTop: 14, paddingBottom: 8 }}>
+          <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: 14, paddingBottom: 8 }}>
             <ImagePickerField
               s={s} uri={imageUri}
               onChange={setImageUri}
@@ -305,8 +302,6 @@ const PromoFormModal: React.FC<{
               <Text style={s.btnPrimaryText}>Сохранить</Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 };

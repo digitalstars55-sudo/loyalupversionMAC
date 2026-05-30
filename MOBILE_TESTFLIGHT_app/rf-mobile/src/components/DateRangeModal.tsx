@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View, Text, Pressable, Modal, KeyboardAvoidingView, Platform, ScrollView,
-} from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { X as XIcon, Calendar, Check } from 'lucide-react-native';
 import { C } from '../theme';
 import { haptic, ripple } from '../platform';
 import type { S } from '../styles';
 import { CalendarPicker, fromYmd, toYmd } from './CalendarPicker';
+import { SheetModal } from './SheetModal';
 
 // ════════════════════════════════════════════════════════════════════
 // DATE RANGE MODAL — произвольный период с двумя date-input
@@ -115,15 +114,7 @@ export const DateRangeModal: React.FC<{
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={s.modalRoot}
-      >
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, { maxHeight: '90%' }]}>
-          <View style={s.modalHandle} />
-
+    <SheetModal visible={visible} onClose={onClose} maxHeightPct={0.9}>
           <View style={s.modalHeader}>
             <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
               <Calendar size={16} color={C.purpleDeep} strokeWidth={2.2} />
@@ -137,7 +128,7 @@ export const DateRangeModal: React.FC<{
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}>
             {/* Текущий выбор */}
             <View style={{
               flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -191,9 +182,7 @@ export const DateRangeModal: React.FC<{
               <Text style={s.btnPrimaryText}>Применить</Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 };
 

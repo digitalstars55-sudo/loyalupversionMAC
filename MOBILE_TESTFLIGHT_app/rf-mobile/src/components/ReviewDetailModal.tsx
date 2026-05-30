@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform,
+  View, Text, Pressable, ScrollView,
   TextInput, Alert, ActivityIndicator, FlatList, Dimensions, Image, Linking,
 } from 'react-native';
+import { SheetModal } from './SheetModal';
 
 const SCREEN_H = Dimensions.get('window').height;
 import {
@@ -191,15 +192,8 @@ export const ReviewDetailModal: React.FC<{
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'height' : 'height'}
-        style={s.modalRoot}
-      >
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, { maxHeight: SCREEN_H * 0.92, flex: 1 }]}>
-          <View style={s.modalHandle} />
-
+    <SheetModal visible={visible} onClose={onClose} maxHeightPct={0.94}>
+        <View style={{ flex: 1 }}>
           {/* Header */}
           <View style={s.rvDetailHeader}>
             <View style={[s.rvDetailAvatar, { backgroundColor: avatarColor(review.customer_name) }]}>
@@ -272,6 +266,8 @@ export const ReviewDetailModal: React.FC<{
                 renderItem={renderItem}
                 contentContainerStyle={s.rvThreadList}
                 showsVerticalScrollIndicator={false}
+                keyboardDismissMode="interactive"
+                keyboardShouldPersistTaps="handled"
                 onContentSizeChange={() => { try { listRef.current?.scrollToEnd({ animated: false }); } catch {} }}
               />
             )}
@@ -371,8 +367,7 @@ export const ReviewDetailModal: React.FC<{
             })()}
           </View>
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 };
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, Pressable, FlatList, RefreshControl, Alert, TextInput, Modal,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+  View, Text, Pressable, FlatList, RefreshControl, Alert, TextInput,
+  ActivityIndicator, ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { fetchCategories, fetchBranches, saveCategory, deleteCategory } from '..
 import { makeStyles } from '../styles';
 import { Skeleton } from '../components/Skeleton';
 import { Chip } from '../components/Common';
+import { SheetModal } from '../components/SheetModal';
 import type { ProductCategory, RFBranch } from '../types';
 import type { S } from '../styles';
 
@@ -215,11 +216,7 @@ const CategoryFormModal: React.FC<{
   };
 
   return (
-    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalRoot}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={s.modalSheet}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={isOpen} onClose={onClose}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>{isNew ? 'Создать' : 'Редактировать'}</Text>
@@ -280,8 +277,6 @@ const CategoryFormModal: React.FC<{
               <Text style={s.btnPrimaryText}>Сохранить</Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 };

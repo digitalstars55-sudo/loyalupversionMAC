@@ -8,6 +8,7 @@ import {
   Gift, Target, FolderTree, KeyRound, CloudOff,
 } from 'lucide-react-native';
 
+import ReAnimated, { SlideInRight } from 'react-native-reanimated';
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
@@ -82,66 +83,47 @@ export const MoreScreen: React.FC<{
     if (openSubScreen) onSubScreenConsumed?.();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (sub === 'auto-reply') {
+  // Под-экраны «Ещё» — собираем в один subEl и оборачиваем единой slide-in анимацией.
+  let subEl: React.ReactNode = null;
+  if (sub === 'auto-reply') subEl = (
+    <AutoReplySettings settings={autoReplySettings} onChange={onAutoReplyChange} onBack={() => setSub(null)} />
+  );
+  else if (sub === 'manager-contact') subEl = (
+    <ManagerContact onBack={() => setSub(null)} onOpenChat={() => { setSub(null); onOpenChat(); }} />
+  );
+  else if (sub === 'campaigns')     subEl = <CampaignsScreen     onBack={() => setSub(null)} />;
+  else if (sub === 'guests')        subEl = <GuestsScreen        onBack={() => setSub(null)} initialGuestVkId={openGuestVkId} />;
+  else if (sub === 'branches')      subEl = (
+    <BranchesScreen onBack={() => setSub(null)} reviews={reviews} onContactManager={() => { setSub(null); onOpenChat(); }} />
+  );
+  else if (sub === 'rf-thresholds') subEl = <RFThresholdsScreen  onBack={() => setSub(null)} />;
+  else if (sub === 'profile')       subEl = <ProfileScreen       onBack={() => setSub(null)} />;
+  else if (sub === 'staff')         subEl = (
+    <StaffScreen onBack={() => setSub(null)} onOpenAuditLog={() => setSub('audit-log')} />
+  );
+  else if (sub === 'audit-log')     subEl = <AuditLogScreen      onBack={() => setSub('staff')} />;
+  else if (sub === 'help')          subEl = (
+    <HelpScreen onBack={() => setSub(null)} onOpenChat={() => { setSub(null); onOpenChat(); }} />
+  );
+  else if (sub === 'general-stats') subEl = (
+    <GeneralStatsScreen onBack={() => setSub(null)} onOpenReport={() => setSub('reports')} />
+  );
+  else if (sub === 'reports')       subEl = <ReportsScreen       onBack={() => setSub(null)} />;
+  else if (sub === 'catalog')       subEl = (
+    <CatalogScreen onBack={() => setSub(null)} onOpenCategories={() => setSub('categories')} />
+  );
+  else if (sub === 'categories')    subEl = <CategoriesScreen    onBack={() => setSub('catalog')} />;
+  else if (sub === 'quests')        subEl = <QuestsScreen        onBack={() => setSub(null)} />;
+  else if (sub === 'promotions')    subEl = <PromotionsScreen    onBack={() => setSub(null)} />;
+  else if (sub === 'daily-codes')   subEl = <DailyCodesScreen    onBack={() => setSub(null)} />;
+
+  if (subEl) {
     return (
-      <AutoReplySettings
-        settings={autoReplySettings}
-        onChange={onAutoReplyChange}
-        onBack={() => setSub(null)}
-      />
+      <ReAnimated.View key={sub ?? ''} entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
+        {subEl}
+      </ReAnimated.View>
     );
   }
-
-  if (sub === 'manager-contact') {
-    return (
-      <ManagerContact
-        onBack={() => setSub(null)}
-        onOpenChat={() => { setSub(null); onOpenChat(); }}
-      />
-    );
-  }
-
-  if (sub === 'campaigns')     return <CampaignsScreen     onBack={() => setSub(null)} />;
-  if (sub === 'guests')        return <GuestsScreen        onBack={() => setSub(null)} initialGuestVkId={openGuestVkId} />;
-  if (sub === 'branches')      return (
-    <BranchesScreen
-      onBack={() => setSub(null)}
-      reviews={reviews}
-      onContactManager={() => { setSub(null); onOpenChat(); }}
-    />
-  );
-  if (sub === 'rf-thresholds') return <RFThresholdsScreen  onBack={() => setSub(null)} />;
-  if (sub === 'profile')       return <ProfileScreen       onBack={() => setSub(null)} />;
-  if (sub === 'staff')         return (
-    <StaffScreen
-      onBack={() => setSub(null)}
-      onOpenAuditLog={() => setSub('audit-log')}
-    />
-  );
-  if (sub === 'audit-log')     return <AuditLogScreen      onBack={() => setSub('staff')} />;
-  if (sub === 'help')          return (
-    <HelpScreen
-      onBack={() => setSub(null)}
-      onOpenChat={() => { setSub(null); onOpenChat(); }}
-    />
-  );
-  if (sub === 'general-stats') return (
-    <GeneralStatsScreen
-      onBack={() => setSub(null)}
-      onOpenReport={() => setSub('reports')}
-    />
-  );
-  if (sub === 'reports')       return <ReportsScreen       onBack={() => setSub(null)} />;
-  if (sub === 'catalog')       return (
-    <CatalogScreen
-      onBack={() => setSub(null)}
-      onOpenCategories={() => setSub('categories')}
-    />
-  );
-  if (sub === 'categories')    return <CategoriesScreen    onBack={() => setSub('catalog')} />;
-  if (sub === 'quests')        return <QuestsScreen        onBack={() => setSub(null)} />;
-  if (sub === 'promotions')    return <PromotionsScreen    onBack={() => setSub(null)} />;
-  if (sub === 'daily-codes')   return <DailyCodesScreen    onBack={() => setSub(null)} />;
 
   const open = (next: SubScreen) => () => { haptic('light'); setSub(next); };
 

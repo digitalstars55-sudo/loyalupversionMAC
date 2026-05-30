@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, Pressable, FlatList, RefreshControl, Alert, TextInput, Modal,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Switch,
+  View, Text, Pressable, FlatList, RefreshControl, Alert, TextInput,
+  ActivityIndicator, ScrollView, Switch,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ import { fetchQuests, fetchBranches, saveQuest, deleteQuest } from '../api';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
 import { Chip } from '../components/Common';
+import { SheetModal } from '../components/SheetModal';
 import type { Quest, RFBranch } from '../types';
 import type { S } from '../styles';
 
@@ -237,11 +238,7 @@ const QuestFormModal: React.FC<{
   };
 
   return (
-    <Modal visible={isOpen} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.modalRoot}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, { maxHeight: '92%' }]}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={isOpen} onClose={onClose} maxHeightPct={0.92}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>{isNew ? 'Создать' : 'Редактировать'}</Text>
@@ -252,7 +249,7 @@ const QuestFormModal: React.FC<{
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingTop: 14, paddingBottom: 8 }}>
+          <ScrollView style={{ flexShrink: 1 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: 14, paddingBottom: 8 }}>
             <View style={s.formGroup}>
               <Text style={s.formLabel}>Название</Text>
               <View style={s.formInputWrap}>
@@ -342,8 +339,6 @@ const QuestFormModal: React.FC<{
               <Text style={s.btnPrimaryText}>Сохранить</Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 };

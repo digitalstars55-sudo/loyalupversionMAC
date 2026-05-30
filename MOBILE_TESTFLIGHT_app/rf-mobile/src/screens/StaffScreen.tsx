@@ -18,6 +18,7 @@ import { fetchStaff, updateStaff, inviteStaff, deleteStaff, fetchBranches } from
 import { DEFAULT_PERMS_BY_ROLE } from '../mocks';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
+import { SheetModal } from '../components/SheetModal';
 import type { Staff, StaffPermissions, StaffRole, RFBranch } from '../types';
 import type { S } from '../styles';
 
@@ -332,11 +333,7 @@ const PermsModal: React.FC<{
   };
 
   return (
-    <Modal visible={!!staff} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.modalRoot}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, s.modalSheetTall]}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={!!staff} onClose={onClose} maxHeightPct={0.92}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>Сотрудник</Text>
@@ -347,7 +344,7 @@ const PermsModal: React.FC<{
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 24 }}>
             {/* Role picker */}
             <Text style={[s.menuSectionTitle, { paddingHorizontal: 0 }]}>Роль</Text>
             {isOwner ? (
@@ -455,9 +452,7 @@ const PermsModal: React.FC<{
               </Pressable>
             </View>
           )}
-        </View>
-      </View>
-    </Modal>
+    </SheetModal>
   );
 };
 
@@ -521,14 +516,7 @@ const InviteModal: React.FC<{
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={s.modalRoot}
-      >
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={s.modalSheet}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={visible} onClose={onClose} maxHeightPct={0.92}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>Команда</Text>
@@ -539,7 +527,7 @@ const InviteModal: React.FC<{
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 }}>
             <Text style={[s.menuSectionTitle, { paddingHorizontal: 0 }]}>ФИО</Text>
             <View style={[s.fieldCard, { marginHorizontal: 0 }]}>
               <View style={[s.fieldRow, s.fieldRowLast]}>
@@ -628,8 +616,6 @@ const InviteModal: React.FC<{
               </Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 };

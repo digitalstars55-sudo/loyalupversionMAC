@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform,
+  View, Text, Pressable, ScrollView,
   TextInput, Alert, ActivityIndicator, Image, StyleSheet,
 } from 'react-native';
+import { SheetModal } from './SheetModal';
 import {
   X as XIcon, Image as ImageIcon, Sparkles, Lightbulb, Send, Download,
   TestTube2, Users as UsersIcon,
@@ -204,15 +205,7 @@ export const BroadcastModal: React.FC<{
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={s.modalRoot}
-      >
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={s.modalSheet}>
-          <View style={s.modalHandle} />
-
+    <SheetModal visible={visible} onClose={onClose}>
           <View style={s.modalHeader}>
             <Text style={s.detailEmoji}>{info.emoji}</Text>
             <View style={{ flex: 1 }}>
@@ -225,7 +218,7 @@ export const BroadcastModal: React.FC<{
           </View>
 
           <ScrollView
-            style={s.modalBody}
+            style={[s.modalBody, { flexShrink: 1 }]}
             contentContainerStyle={s.modalBodyContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -486,9 +479,7 @@ export const BroadcastModal: React.FC<{
               <Text style={s.btnPrimaryText}>Отправить</Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 };
 

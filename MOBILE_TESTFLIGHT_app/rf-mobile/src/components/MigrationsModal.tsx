@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, Pressable, FlatList } from 'react-native';
+import { View, Text, Pressable, FlatList } from 'react-native';
 import { X, ArrowRight } from 'lucide-react-native';
 
 import { C } from '../theme';
 import { ripple } from '../platform';
 import { fetchFullMigrations } from '../api';
 import { Skeleton } from './Skeleton';
+import { SheetModal } from './SheetModal';
 import type { RFMigration, Mode } from '../types';
 import type { S } from '../styles';
 
@@ -50,11 +51,7 @@ export const MigrationsModal: React.FC<{
   const totalLoss = items.filter(m => m.count < 0).reduce((sum, m) => sum + m.count, 0);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.modalRoot}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={[s.modalSheet, s.modalSheetTall]}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={visible} onClose={onClose} maxHeightPct={0.85}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>За {periodDays} дней</Text>
@@ -113,6 +110,7 @@ export const MigrationsModal: React.FC<{
             <FlatList
               data={filtered}
               keyExtractor={(_, i) => String(i)}
+              style={{ flexShrink: 1 }}
               contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 }}
               ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: C.lineSoft }} />}
               renderItem={({ item }) => (
@@ -136,8 +134,6 @@ export const MigrationsModal: React.FC<{
               )}
             />
           )}
-        </View>
-      </View>
-    </Modal>
+    </SheetModal>
   );
 };

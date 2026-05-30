@@ -47,7 +47,7 @@ import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
 import { registerAssistantNav } from './src/navBridge';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import ReAnimated, { FadeIn } from 'react-native-reanimated';
+import ReAnimated, { FadeIn, SlideInRight } from 'react-native-reanimated';
 import { OfflineBanner } from './src/components/OfflineBanner';
 
 import { AuthScreen } from './src/screens/AuthScreen';
@@ -538,7 +538,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName }: {
   // Overlay-экраны имеют приоритет над табами (но TabBar остаётся)
   if (overlay === 'branch-ratings') {
     return (
-      <View style={{ flex: 1 }}>
+      <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <BranchRatingsScreen
           reviews={reviews}
           onBack={() => setOverlay(null)}
@@ -551,28 +551,28 @@ function Root({ onLogout, onSwitchTenant, currentTenantName }: {
           }}
         />
         <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
-      </View>
+      </ReAnimated.View>
     );
   }
   if (overlay === 'reports') {
     return (
-      <View style={{ flex: 1 }}>
+      <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <ReportsScreen onBack={() => setOverlay(null)} />
         <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
-      </View>
+      </ReAnimated.View>
     );
   }
   if (overlay === 'rf-thresholds') {
     return (
-      <View style={{ flex: 1 }}>
+      <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <RFThresholdsScreen onBack={() => setOverlay(null)} />
         <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
-      </View>
+      </ReAnimated.View>
     );
   }
   if (overlay === 'search') {
     return (
-      <View style={{ flex: 1 }}>
+      <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <SearchScreen
           onBack={() => setOverlay(null)}
           onOpenReview={(id) => { setOverlay(null); setTab('reviews'); setPushSelectedReviewId(id); }}
@@ -582,31 +582,31 @@ function Root({ onLogout, onSwitchTenant, currentTenantName }: {
           onOpenPromotions={() => { setOverlay(null); setTab('more'); }}
         />
         <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
-      </View>
+      </ReAnimated.View>
     );
   }
   if (overlay === 'birthdays') {
     return (
-      <View style={{ flex: 1 }}>
+      <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <BirthdaysScreen
           onBack={() => setOverlay(null)}
           onOpenGuest={(vkId) => { setOverlay(null); setPendingGuestVkId(vkId); setTab('more'); }}
         />
         <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
-      </View>
+      </ReAnimated.View>
     );
   }
   if (overlay === 'engagement') {
     return (
-      <View style={{ flex: 1 }}>
+      <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <EngagementAnalyticsScreen onBack={() => setOverlay(null)} />
         <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
-      </View>
+      </ReAnimated.View>
     );
   }
   if (overlay === 'notifications') {
     return (
-      <View style={{ flex: 1 }}>
+      <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <NotificationsScreen
           notifications={notifications}
           onClose={() => setOverlay(null)}
@@ -625,7 +625,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName }: {
           }}
         />
         <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
-      </View>
+      </ReAnimated.View>
     );
   }
 

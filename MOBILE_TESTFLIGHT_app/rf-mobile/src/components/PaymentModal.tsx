@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Modal, View, Text, Pressable, ScrollView, ActivityIndicator, Alert, Linking, Platform,
+  View, Text, Pressable, ScrollView, ActivityIndicator, Alert, Linking, Platform,
 } from 'react-native';
+import { SheetModal } from './SheetModal';
 import { X, CreditCard, Check } from 'lucide-react-native';
 
 import { C } from '../theme';
@@ -70,11 +71,7 @@ export const PaymentModal: React.FC<{
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={s.modalRoot}>
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={s.modalSheet}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={visible} onClose={onClose}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>Тариф «{subscription.plan_label}»</Text>
@@ -85,7 +82,7 @@ export const PaymentModal: React.FC<{
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 20 }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 20 }}>
             <View style={[s.modalHint, { marginBottom: 14 }]}>
               <Text style={s.modalHintText}>
                 Выберите удобный способ оплаты — мы передадим заявку менеджеру LoyalUP, он выставит счёт и подтвердит продление в чате.
@@ -116,8 +113,6 @@ export const PaymentModal: React.FC<{
               </Pressable>
             ))}
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </SheetModal>
   );
 };

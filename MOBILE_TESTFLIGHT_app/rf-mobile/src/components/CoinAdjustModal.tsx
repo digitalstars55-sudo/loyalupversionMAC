@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Modal, View, Text, Pressable, TextInput, ScrollView, ActivityIndicator, Alert,
-  KeyboardAvoidingView, Platform,
+  View, Text, Pressable, TextInput, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import { X, Plus, Minus, Save } from 'lucide-react-native';
 
@@ -10,6 +9,7 @@ import { ripple, haptic } from '../platform';
 import { fmtNum } from '../helpers';
 import { adjustGuestCoins } from '../api';
 import type { GuestCoinTxn } from '../types';
+import { SheetModal } from './SheetModal';
 import type { S } from '../styles';
 
 // ════════════════════════════════════════════════════════════════════
@@ -97,14 +97,7 @@ export const CoinAdjustModal: React.FC<{
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={s.modalRoot}
-      >
-        <Pressable style={s.modalBackdrop} onPress={onClose} />
-        <View style={s.modalSheet}>
-          <View style={s.modalHandle} />
+    <SheetModal visible={visible} onClose={onClose}>
           <View style={s.modalHeader}>
             <View style={{ flex: 1 }}>
               <Text style={s.modalSuper}>Изменить баланс</Text>
@@ -115,7 +108,7 @@ export const CoinAdjustModal: React.FC<{
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 }}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 }}>
             {/* Текущий баланс */}
             <View style={[s.modalHint, { marginBottom: 14 }]}>
               <Text style={s.modalHintText}>
@@ -243,8 +236,6 @@ export const CoinAdjustModal: React.FC<{
               </Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </SheetModal>
   );
 };
