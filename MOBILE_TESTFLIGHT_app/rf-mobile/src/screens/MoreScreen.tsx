@@ -30,6 +30,7 @@ import { CategoriesScreen } from './CategoriesScreen';
 import { QuestsScreen } from './QuestsScreen';
 import { PromotionsScreen } from './PromotionsScreen';
 import { DailyCodesScreen } from './DailyCodesScreen';
+import { PushPrefsScreen } from './PushPrefsScreen';
 import { AuditLogScreen } from './AuditLogScreen';
 import { simulateLocalPush, type PushType } from '../push';
 import { setForceOffline, isForceOffline } from '../network';
@@ -56,6 +57,7 @@ type SubScreen =
   | 'promotions'
   | 'daily-codes'
   | 'audit-log'
+  | 'push-prefs'
   | null;
 
 export const MoreScreen: React.FC<{
@@ -116,6 +118,7 @@ export const MoreScreen: React.FC<{
   else if (sub === 'quests')        subEl = <QuestsScreen        onBack={() => setSub(null)} />;
   else if (sub === 'promotions')    subEl = <PromotionsScreen    onBack={() => setSub(null)} />;
   else if (sub === 'daily-codes')   subEl = <DailyCodesScreen    onBack={() => setSub(null)} />;
+  else if (sub === 'push-prefs')    subEl = <PushPrefsScreen     onBack={() => setSub(null)} />;
 
   if (subEl) {
     return (
@@ -274,6 +277,14 @@ export const MoreScreen: React.FC<{
               title="Профиль"
               sub="ФИО, аватар, дата рождения"
               onPress={open('profile')}
+            />
+            <MenuRow
+              s={s}
+              icon={<Bell size={18} color={C.limeDeep} strokeWidth={2} />}
+              iconBg={C.limeSoft}
+              title="Уведомления"
+              sub="С каких сетей и о чём слать пуши"
+              onPress={open('push-prefs')}
             />
             <MenuRow
               s={s}

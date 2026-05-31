@@ -1712,3 +1712,42 @@ export async function fetchEngagementAnalytics(p: {
   return await res.json();
 }
 
+
+// ════════════════════════════════════════════════════════════════════
+// PUSH PREFERENCES — выбор тенантов/типов для пуша
+// ════════════════════════════════════════════════════════════════════
+export interface PushTenant   { schema_name: string; name: string }
+export interface PushTypeInfo { code: string; label: string; description: string }
+export interface PushPrefs {
+  tenants:           Record<string, boolean>;  // {schema: bool, '*': bool}
+  types:             Record<string, boolean>;  // {code: bool}
+  available_tenants: PushTenant[];
+  available_types:   PushTypeInfo[];
+}
+
+export async function fetchPushPrefs(): Promise<PushPrefs> {
+  if (USE_MOCK) return {
+    tenants: {}, types: {},
+    available_tenants: [{ schema_name: 'levone', name: 'LevOne' }],
+    available_types:   [{ code: 'review_new', label: 'Новый отзыв', description: 'Гость оставил отзыв' }],
+  };
+  const url = new URL('/api/v1/me/push-prefs/', getApiBase()).toString();
+  const res = await fetch(url, { headers: { Accept: 'application/json', ...authHeaders() } });
+  if (!res.ok) throw new Error(`fetchPushPrefs failed: ${res.status}`);
+  return await res.json();
+}
+
+export async function updatePushPrefs(p: {
+  tenants?: Record<string, boolean>;
+  types?:   Record<string, boolean>;
+}): Promise<PushPrefs> {
+  if (USE_MOCK) return fetchPushPrefs();
+  const url = new URL('/api/v1/me/push-prefs/', getApiBase()).toString();
+  const res = await fetch(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(p),
+  });
+  if (!res.ok) throw new Error(`updatePushPrefs failed: ${res.status}`);
+  return await res.json();
+}
