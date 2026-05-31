@@ -68,8 +68,12 @@ export const ReviewDetailModal: React.FC<{
   if (!review) return null;
 
   const meta = sentimentMeta(review.sentiment);
-  const isVk = review.source === 'VK_MESSAGE';
-  const canReply = isVk && !!review.vk_sender_id;
+  const sources = review.sources ?? [review.source];
+  const isVk = sources.includes('VK_MESSAGE');
+  // Ответить можно ЛЮБОМУ гостю с vk_sender_id — и тому, кто писал в группу,
+  // и тому, кто писал из миниаппа (бэк отправит через сообщество ВК → если
+  // гость не подписан, fallback на локальное сохранение + warning в UI).
+  const canReply = !!review.vk_sender_id;
 
   // Когда показывать AI-черновик-баннер: если черновик есть и админ ещё не ответил
   const hasAnyAdminMsg = messages.some(m => m.source === 'ADMIN_REPLY');
@@ -93,6 +97,15 @@ export const ReviewDetailModal: React.FC<{
         messages: [...(review.messages ?? messages), sent],
       });
       setReplyText('');
+      // Если VK reply не прошёл (гость заблокировал группу или не подписан) —
+      // ответ сохранён локально, но гость не получит push в ВК. Показываем warn,
+      // чтобы менеджер понимал что надо найти альтернативный канал связи.
+      if (sent.delivered_to_vk === false) {
+        Alert.alert(
+          'Ответ сохранён, но не доставлен в ВК',
+          'Гость не получит уведомление в ВКонтакте (заблокировал сообщения от группы или закрытый профиль). Ответ виден в карточке отзыва, но придётся связаться с ним другим способом.',
+        );
+      }
     } catch (e: any) {
       haptic('error');
       Alert.alert('Ошибка', e?.message ?? 'Не удалось отправить ответ');
@@ -374,7 +387,10 @@ export const ReviewDetailModal: React.FC<{
 // ─────────────────────────────────────────────
 const ThreadBubble: React.FC<{ msg: TestimonialMessage; s: S }> = ({ msg, s }) => {
   const isAdmin = msg.source === 'ADMIN_REPLY';
-  const sourceLbl = msg.source === 'APP' ? 'из приложения' : msg.source === 'VK_MESSAGE' ? 'ВКонтакте' : 'администратор';
+  // Эмодзи + текстовая метка источника. Делает быстрый scan треда легче:
+  // 📱 = гость из миниаппа, 💬 = гость из ВК-сообщества, 💼 = ответ менеджера.
+  const sourceIcon = msg.source === 'APP' ? '📱' : msg.source === 'VK_MESSAGE' ? '💬' : '💼';
+  const sourceLbl  = msg.source === 'APP' ? 'из приложения' : msg.source === 'VK_MESSAGE' ? 'из ВК' : 'администратор';
 
   return (
     <View style={isAdmin ? s.rvBubbleRowAdmin : s.rvBubbleRowGuest}>
@@ -435,7 +451,7 @@ const ThreadBubble: React.FC<{ msg: TestimonialMessage; s: S }> = ({ msg, s }) =
 
         <View style={s.rvBubbleMeta}>
           <Text style={[s.rvBubbleSource, isAdmin ? s.rvBubbleSourceAdmin : s.rvBubbleSourceGuest]}>
-            {sourceLbl}
+            {sourceIcon} {sourceLbl}
           </Text>
           <Text style={[s.rvBubbleSource, isAdmin ? s.rvBubbleSourceAdmin : s.rvBubbleSourceGuest]}>
             · {chatTime(msg.created_at)}

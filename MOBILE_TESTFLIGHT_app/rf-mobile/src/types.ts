@@ -102,6 +102,11 @@ export interface ReviewPresence {
 export interface Review {
   id: number;
   source: ReviewSource;
+  // Все источники этого треда (с учётом cross-conv merge по vk_sender_id):
+  // ['APP'] — только из миниаппа, ['VK_MESSAGE'] — только из ВК-группы,
+  // ['APP','VK_MESSAGE'] — гость писал и туда, и туда (показываем оба бейджа).
+  // Опционально для обратной совместимости — старый бэк отдаёт только source.
+  sources?: ReviewSource[];
   sentiment: Sentiment;
   ai_comment: string;
   branch_id: number;

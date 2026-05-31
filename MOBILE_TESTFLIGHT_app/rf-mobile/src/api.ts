@@ -924,7 +924,16 @@ export async function fetchReviewMessages(p: { review_id: number }): Promise<Tes
   return data.messages ?? [];
 }
 
-export async function appendReviewMessage(p: { review_id: number; text: string }): Promise<TestimonialMessage> {
+// Бэк возвращает TestimonialMessage + 2 доп. поля:
+//   delivered_to_vk: bool — реально ли VK API принял сообщение (гость получит уведомление)
+//   vk_error?: string — текст ошибки от VK (если delivered_to_vk=false)
+// Мобайл показывает warning если delivered_to_vk=false: «гость не получит push в ВК».
+export type ReviewReplyResult = TestimonialMessage & {
+  delivered_to_vk?: boolean;
+  vk_error?: string;
+};
+
+export async function appendReviewMessage(p: { review_id: number; text: string }): Promise<ReviewReplyResult> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 500));
     return {
@@ -933,6 +942,7 @@ export async function appendReviewMessage(p: { review_id: number; text: string }
       text: p.text,
       created_at: new Date().toISOString(),
       admin_name: MOCK_PROFILE.full_name,
+      delivered_to_vk: true,
     };
   }
   const url = new URL(`/api/v1/mobile/reviews/${p.review_id}/reply/`, getApiBase());

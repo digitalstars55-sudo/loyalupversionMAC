@@ -174,8 +174,13 @@ export const ReviewsScreen: React.FC<{
       if (filters.status === 'replied'    && !rev.is_replied) return false;
       if (filters.status === 'draft'      && (!rev.has_draft || rev.is_replied)) return false;
       if (filters.status === 'unread'     && !rev.has_unread) return false;
-      // source
-      if (filters.source !== 'any' && rev.source !== filters.source) return false;
+      // source — учитываем `sources` (массив) если есть, иначе fallback на скаляр.
+      // Так conv с обоими источниками (APP+VK_MESSAGE) проходит И в фильтр «APP»,
+      // И в фильтр «VK_MESSAGE» — по-честному.
+      if (filters.source !== 'any') {
+        const srcs = rev.sources ?? [rev.source];
+        if (!srcs.includes(filters.source)) return false;
+      }
       // search
       if (q) {
         return rev.customer_name.toLowerCase().includes(q) ||
@@ -781,8 +786,25 @@ const ReviewCard: React.FC<{
             <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: meta.color }} />
             <Text style={[s.rvCardSentimentText, { color: meta.color }]}>{meta.label}</Text>
           </View>
+          {/* Бейдж источника: 📱 / 💬 / оба (если гость писал и через миниапп, и в ВК) */}
+          {(rev.sources ?? [rev.source]).map((src) => (
+            <View
+              key={src}
+              style={{
+                paddingHorizontal: 6, paddingVertical: 2,
+                borderRadius: 6,
+                backgroundColor: src === 'APP' ? C.purpleSoft : C.limeSoft,
+                flexDirection: 'row', alignItems: 'center', gap: 3,
+              }}
+            >
+              <Text style={{ fontSize: 10 }}>{src === 'APP' ? '📱' : '💬'}</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Manrope_800ExtraBold', color: src === 'APP' ? C.purpleDeep : C.limeDeep }}>
+                {src === 'APP' ? 'APP' : 'ВК'}
+              </Text>
+            </View>
+          ))}
           <Text style={s.rvCardBranch}>{rev.branch_name}</Text>
-          {rev.source === 'APP' && rev.rating != null && (
+          {(rev.sources ?? [rev.source]).includes('APP') && rev.rating != null && (
             <View style={s.rvCardStarsRow}>
               {[1, 2, 3, 4, 5].map(i => (
                 <Text key={i} style={[s.rvCardStar, { color: i <= (rev.rating ?? 0) ? '#F59E0B' : C.line }]}>★</Text>
