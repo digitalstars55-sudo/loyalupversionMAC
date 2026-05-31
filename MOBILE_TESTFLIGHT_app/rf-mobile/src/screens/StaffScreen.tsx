@@ -14,7 +14,7 @@ import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple, formatPhone, maskRuPhoneInput, ruPhoneToE164 } from '../platform';
 import { avatarColor, initials, relativeTime } from '../helpers';
-import { fetchStaff, updateStaff, inviteStaff, deleteStaff, fetchBranches } from '../api';
+import { fetchStaff, updateStaff, inviteStaff, deleteStaff, fetchBranches, linkExistingStaff } from '../api';
 import { DEFAULT_PERMS_BY_ROLE } from '../mocks';
 import { makeStyles } from '../styles';
 import { SkeletonCard } from '../components/Skeleton';
@@ -104,6 +104,27 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
     } catch (e: any) {
       haptic('error');
       Alert.alert('Ошибка', e?.message ?? 'Не удалось пригласить');
+    }
+  };
+
+  // Связать СУЩЕСТВУЮЩЕГО юзера с этой сетью — без нового логина/пароля.
+  // Сценарий: сотрудник уже работает у меня в другой сети.
+  const onLinkExisting = async (data: {
+    username: string; role: 'manager' | 'viewer'; branch_ids: number[];
+  }) => {
+    try {
+      const linked = await linkExistingStaff(data);
+      setList(prev => [...prev, linked]);
+      haptic('success');
+      setInviteOpen(false);
+      Alert.alert(
+        'Добавлен в сеть ✅',
+        `${linked.full_name || data.username} теперь имеет доступ к этой сети. ` +
+        `Логин и пароль не меняются — он входит как раньше, просто увидит дополнительный тенант в переключателе сетей.`,
+      );
+    } catch (e: any) {
+      haptic('error');
+      Alert.alert('Не удалось добавить', e?.message ?? 'Проверь логин (с учётом регистра).');
     }
   };
 
@@ -221,6 +242,7 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
         manageableRoles={manageableRoles}
         onClose={() => setInviteOpen(false)}
         onInvite={onInvite}
+        onLinkExisting={onLinkExisting}
       />
     </SafeAreaView>
   );
@@ -482,6 +504,8 @@ const PermRow: React.FC<{
 );
 
 // ────────────── Invite modal ──────────────
+type InviteMode = 'new' | 'existing';
+
 const InviteModal: React.FC<{
   visible: boolean;
   branches: RFBranch[];
@@ -492,32 +516,54 @@ const InviteModal: React.FC<{
     full_name: string; email?: string; phone?: string;
     role: 'manager' | 'viewer'; branch_ids: number[];
   }) => void;
-}> = ({ visible, branches, s, manageableRoles, onClose, onInvite }) => {
+  // Связать существующего юзера (по точному username) с этой сетью.
+  // Сценарий: сотрудник работает в другой моей сети — добавляю сюда без
+  // создания нового логина и пароля.
+  onLinkExisting: (p: {
+    username: string; role: 'manager' | 'viewer'; branch_ids: number[];
+  }) => Promise<void>;
+}> = ({ visible, branches, s, manageableRoles, onClose, onInvite, onLinkExisting }) => {
   const roleOptions = manageableRoles.length ? manageableRoles : (['manager', 'viewer'] as ('manager' | 'viewer')[]);
+  const [mode, setMode] = useState<InviteMode>('new');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [username, setUsername] = useState('');
   const [role, setRole] = useState<'manager' | 'viewer'>(roleOptions[0]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (visible) { setName(''); setEmail(''); setPhone(''); setRole(roleOptions[0]); }
+    if (visible) {
+      setMode('new');
+      setName(''); setEmail(''); setPhone(''); setUsername('');
+      setRole(roleOptions[0]);
+    }
   }, [visible]);
 
-  const valid = name.trim().length >= 3 && (email.includes('@') || ruPhoneToE164(phone) !== '');
+  const validNew = name.trim().length >= 3 && (email.includes('@') || ruPhoneToE164(phone) !== '');
+  const validExisting = username.trim().length >= 2;
+  const valid = mode === 'new' ? validNew : validExisting;
 
   const submit = async () => {
     if (!valid) return;
     haptic('medium');
     setSubmitting(true);
     try {
-      await onInvite({
-        full_name: name.trim(),
-        email: email.trim() || undefined,
-        phone: ruPhoneToE164(phone) || undefined,
-        role,
-        branch_ids: [],
-      });
+      if (mode === 'new') {
+        await onInvite({
+          full_name: name.trim(),
+          email: email.trim() || undefined,
+          phone: ruPhoneToE164(phone) || undefined,
+          role,
+          branch_ids: [],
+        });
+      } else {
+        await onLinkExisting({
+          username: username.trim(),
+          role,
+          branch_ids: [],
+        });
+      }
     } finally { setSubmitting(false); }
   };
 
@@ -534,49 +580,100 @@ const InviteModal: React.FC<{
           </View>
 
           <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 14, paddingBottom: 8 }}>
-            <Text style={[s.menuSectionTitle, { paddingHorizontal: 0 }]}>ФИО</Text>
-            <View style={[s.fieldCard, { marginHorizontal: 0 }]}>
-              <View style={[s.fieldRow, s.fieldRowLast]}>
-                <View style={s.fieldText}>
-                  <TextInput
-                    style={s.fieldInput}
-                    value={name} onChangeText={setName}
-                    placeholder="Иванова Ольга Викторовна"
-                    placeholderTextColor={C.ink4}
-                    maxLength={64}
-                  />
-                </View>
-              </View>
+            {/* Переключатель режима: новый сотрудник vs связать существующего */}
+            <View style={[s.pillsRow, { paddingHorizontal: 0, marginBottom: 12 }]}>
+              {(['new', 'existing'] as InviteMode[]).map(m => {
+                const active = mode === m;
+                const label = m === 'new' ? '➕ Новый' : '🔗 Уже есть аккаунт';
+                return (
+                  <Pressable
+                    key={m}
+                    style={[s.pill, active && s.pillActive, { flex: 1 }]}
+                    {...ripple('rgba(255,255,255,0.18)')}
+                    onPress={() => { haptic('light'); setMode(m); }}
+                  >
+                    <Text style={[s.pillText, active && s.pillTextActive, { textAlign: 'center' }]}>{label}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
+            {mode === 'existing' && (
+              <Text style={[s.modalHintText, { marginBottom: 10 }]}>
+                Если сотрудник уже работает у тебя в другой сети — просто введи
+                его логин и добавим эту сеть в его аккаунт. Логин и пароль не меняются.
+              </Text>
+            )}
 
-            <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, marginTop: 4 }]}>Email или телефон</Text>
-            <View style={[s.fieldCard, { marginHorizontal: 0 }]}>
-              <View style={s.fieldRow}>
-                <View style={s.fieldText}>
-                  <TextInput
-                    style={s.fieldInput}
-                    value={email} onChangeText={setEmail}
-                    placeholder="email@example.ru"
-                    placeholderTextColor={C.ink4}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
+            {mode === 'existing' ? (
+              <>
+                <Text style={[s.menuSectionTitle, { paddingHorizontal: 0 }]}>Логин (username) сотрудника</Text>
+                <View style={[s.fieldCard, { marginHorizontal: 0 }]}>
+                  <View style={[s.fieldRow, s.fieldRowLast]}>
+                    <View style={s.fieldText}>
+                      <TextInput
+                        style={s.fieldInput}
+                        value={username} onChangeText={setUsername}
+                        placeholder="olga.ivanova"
+                        placeholderTextColor={C.ink4}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        maxLength={150}
+                      />
+                    </View>
+                  </View>
                 </View>
-              </View>
-              <View style={[s.fieldRow, s.fieldRowLast]}>
-                <View style={s.fieldText}>
-                  <TextInput
-                    style={s.fieldInput}
-                    value={phone} onChangeText={(t) => setPhone(maskRuPhoneInput(t))}
-                    placeholder="+7 (999) 123-45-67"
-                    placeholderTextColor={C.ink4}
-                    keyboardType="phone-pad"
-                    maxLength={18}
-                  />
+                <Text style={[s.modalHintText, { marginTop: 6 }]}>
+                  Точный логин (как ему выдавался при первом приглашении).
+                  Регистр важен.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[s.menuSectionTitle, { paddingHorizontal: 0 }]}>ФИО</Text>
+                <View style={[s.fieldCard, { marginHorizontal: 0 }]}>
+                  <View style={[s.fieldRow, s.fieldRowLast]}>
+                    <View style={s.fieldText}>
+                      <TextInput
+                        style={s.fieldInput}
+                        value={name} onChangeText={setName}
+                        placeholder="Иванова Ольга Викторовна"
+                        placeholderTextColor={C.ink4}
+                        maxLength={64}
+                      />
+                    </View>
+                  </View>
                 </View>
-              </View>
-            </View>
+
+                <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, marginTop: 4 }]}>Email или телефон</Text>
+                <View style={[s.fieldCard, { marginHorizontal: 0 }]}>
+                  <View style={s.fieldRow}>
+                    <View style={s.fieldText}>
+                      <TextInput
+                        style={s.fieldInput}
+                        value={email} onChangeText={setEmail}
+                        placeholder="email@example.ru"
+                        placeholderTextColor={C.ink4}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
+                  </View>
+                  <View style={[s.fieldRow, s.fieldRowLast]}>
+                    <View style={s.fieldText}>
+                      <TextInput
+                        style={s.fieldInput}
+                        value={phone} onChangeText={(t) => setPhone(maskRuPhoneInput(t))}
+                        placeholder="+7 (999) 123-45-67"
+                        placeholderTextColor={C.ink4}
+                        keyboardType="phone-pad"
+                        maxLength={18}
+                      />
+                    </View>
+                  </View>
+                </View>
+              </>
+            )}
 
             <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, marginTop: 4 }]}>Роль</Text>
             <View style={[s.pillsRow, { paddingHorizontal: 0 }]}>
@@ -618,7 +715,7 @@ const InviteModal: React.FC<{
                 : <UserCheck size={14} color={C.surface} strokeWidth={2.2} />
               }
               <Text style={s.btnPrimaryText}>
-                {submitting ? 'Отправляем…' : 'Пригласить'}
+                {submitting ? 'Отправляем…' : (mode === 'new' ? 'Пригласить' : 'Добавить в сеть')}
               </Text>
             </Pressable>
           </View>

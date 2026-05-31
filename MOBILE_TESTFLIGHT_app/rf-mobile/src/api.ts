@@ -1267,6 +1267,40 @@ export async function inviteStaff(p: {
   return await res.json();
 }
 
+// Связать СУЩЕСТВУЮЩЕГО юзера (по точному username) с текущей сетью.
+// Сценарий: владелец двух сетей хочет добавить своего сотрудника из
+// первой сети во вторую — без создания нового аккаунта/пароля.
+// Username знать обязательно (мы НЕ отдаём поиск по подстроке —
+// чтобы не утекали чужие username'ы).
+export async function linkExistingStaff(p: {
+  username: string;
+  role?: 'manager' | 'viewer';
+  branch_ids?: number[];
+}): Promise<Staff & { linked_from_existing: true }> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 400));
+    const { DEFAULT_PERMS_BY_ROLE } = await import('./mocks');
+    return {
+      id: Date.now(),
+      full_name: p.username,
+      role: p.role ?? 'viewer',
+      role_label: p.role === 'manager' ? 'Управляющий' : 'Просмотр',
+      active: true,
+      permissions: DEFAULT_PERMS_BY_ROLE[p.role ?? 'viewer'],
+      branch_ids: p.branch_ids ?? [],
+      linked_from_existing: true,
+    } as any;
+  }
+  const res = await fetch(new URL('/api/v1/staff/link-existing/', getApiBase()).toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(p),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `Link failed: ${res.status}`);
+  return data;
+}
+
 export async function deleteStaff(id: number): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return; }
   const res = await fetch(new URL(`/api/v1/staff/${id}/`, getApiBase()).toString(), {
