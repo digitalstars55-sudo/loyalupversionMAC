@@ -393,10 +393,15 @@ const PermsModal: React.FC<{
               </>
             )}
 
-            {/* Branches */}
-            {!isOwner && branches.length > 1 && (
+            {/* Branches — раздел показывается всегда (даже если в сети 1 точка),
+                чтобы было явно видно к каким точкам сотрудник имеет доступ.
+                Раньше скрывалось при branches.length<=1 → пользователь думал
+                что настройки доступа к точкам нет вообще. */}
+            {!isOwner && branches.filter(b => b.id !== 0).length > 0 && (
               <>
-                <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, marginTop: 16 }]}>Точки доступа</Text>
+                <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, marginTop: 16 }]}>
+                  ⚙ Доступ к точкам
+                </Text>
                 <View style={[s.menuCard, { marginHorizontal: 0 }]}>
                   {branches.filter(b => b.id !== 0).map((b, i, arr) => (
                     <PermRow
@@ -410,7 +415,8 @@ const PermsModal: React.FC<{
                   ))}
                 </View>
                 <Text style={[s.modalHintText, { paddingHorizontal: 8, marginTop: 8 }]}>
-                  Если не выбрано ни одной точки — сотрудник видит все.
+                  Все галки = сотрудник видит все точки. Сними галку у точки,
+                  к которой не должен иметь доступа (отзывы/аналитика/пуши).
                 </Text>
               </>
             )}
