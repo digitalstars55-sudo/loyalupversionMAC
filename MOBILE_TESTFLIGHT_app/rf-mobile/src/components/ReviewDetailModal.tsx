@@ -398,6 +398,26 @@ const ThreadBubble: React.FC<{ msg: TestimonialMessage; s: S }> = ({ msg, s }) =
         {isAdmin && msg.admin_name && (
           <Text style={s.rvBubbleAdminName}>{msg.admin_name}</Text>
         )}
+        {/* LU-40: контекст «на что ответил гость» — цитата над текстом.
+            Обычно это авто-опрос «Понравилось?», который сам по себе в треде
+            не показывается (рассылка), но без него ответ гостя висит без смысла. */}
+        {!!msg.reply_to_text && (
+          <View style={{
+            borderLeftWidth: 2,
+            borderLeftColor: isAdmin ? 'rgba(255,255,255,0.4)' : C.purpleLine,
+            paddingLeft: 8,
+            marginBottom: 6,
+            opacity: 0.75,
+          }}>
+            <Text style={{
+              fontSize: 11,
+              fontStyle: 'italic',
+              color: isAdmin ? 'rgba(255,255,255,0.85)' : C.ink3,
+            }} numberOfLines={3}>
+              ↳ {msg.reply_to_text}
+            </Text>
+          </View>
+        )}
         {!!msg.text && (
           <Text style={[s.rvBubbleText, isAdmin ? s.rvBubbleTextAdmin : s.rvBubbleTextGuest]}>
             {msg.text}

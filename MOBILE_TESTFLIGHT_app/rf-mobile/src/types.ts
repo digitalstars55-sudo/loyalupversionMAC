@@ -89,6 +89,10 @@ export interface TestimonialMessage {
   // только для ADMIN_REPLY: кто отправил
   admin_name?: string;
   attachments?: ReviewAttachment[];  // фото из ВК
+  // LU-40: контекст «на что ответил гость» — текст+дата предыдущего сообщения
+  // в треде (обычно авто-опрос «Понравилось?»). Показываем как цитату над бабблом.
+  reply_to_text?: string;
+  reply_to_date?: string;    // ISO
 }
 
 // Кто-то из коллег сейчас работает с отзывом (presence)
