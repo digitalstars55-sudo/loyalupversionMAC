@@ -356,10 +356,23 @@ export interface GuestDetail {
 // ════════════════════════════════════════════════════════════════════
 export interface GeneralStats {
   // Engagement
-  qr_scans: number;
+  qr_scans: number;                    // уник. гости со сканом (для индекса оцифровки)
+  total_scans?: number;                // «Отсканировали QR-код» = кафе + доставка (события)
+  cafe_scans?: number;                 // сканы в кафе
+  delivery_scans?: number;             // сканы с доставки
+  game_reached?: number;               // «Начали игру» (события запуска игры)
   total_vk_subscribers: number;
   new_community_subscribers: number;
   new_newsletter_subscribers: number;
+  // подписки по источникам (кафе/доставка/сториз/другие)
+  community_subs_cafe?: number;
+  community_subs_delivery?: number;
+  community_subs_story?: number;
+  community_subs_other?: number;
+  newsletter_subs_cafe?: number;
+  newsletter_subs_delivery?: number;
+  newsletter_subs_story?: number;
+  newsletter_subs_other?: number;
   new_group_with_gift: number;
 
   // Game / activations

@@ -179,7 +179,8 @@ export const ReportsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             {/* Engagement summary */}
             <SecTitle pad={Math.max(r.pad, 18)}>Вовлечённость</SecTitle>
             <Grid pad={r.pad}>
-              <Snap s={s} bg={C.purpleSoft}  ic="📱" label="QR-сканирования"   val={fmtNum(report.stats.qr_scans)} sub={report.stats.period_label} />
+              <Snap s={s} bg={C.purpleSoft}  ic="📱" label="Отсканировали QR"   val={fmtNum(report.stats.total_scans ?? report.stats.qr_scans)} sub="кафе + доставка" />
+              <Snap s={s} bg={C.goodSoft}    ic="🎮" label="Начали игру"       val={fmtNum(report.stats.game_reached ?? 0)} sub="после скана" />
               <Snap s={s} bg={C.goodSoft}    ic="🔄" label="Повторные визиты"  val={fmtNum(report.stats.repeat_game_players)} sub="игр в разные дни" />
               <Snap s={s} bg={C.purpleSoft}  ic="📬" label="Открываемость"     val={`${(report.stats.message_open_rate ?? 0).toFixed(1)}%`} sub={`${fmtNum(report.stats.message_total_read)} из ${fmtNum(report.stats.message_total_sent)}`} />
               <Snap s={s} bg={C.warnSoft}    ic="🎯" label="Индекс QR ÷ POS"   val={`${report.stats.scan_index.toFixed(1)}%`} sub={`POS: ${fmtNum(report.stats.pos_guests)}`} />

@@ -130,13 +130,22 @@ export const GeneralStatsScreen: React.FC<{
           </View>
         ) : (
           <View style={s.metricsGrid}>
-            <Metric s={s} accent={C.good}     emoji="📱" label="QR-сканирования"          val={stats.qr_scans} />
-            <Metric s={s} accent={C.purple}   emoji="📬" label="Гостей в рассылке"        val={stats.total_vk_subscribers} sub="за всё время" />
+            <Metric s={s} accent={C.good}     emoji="📱" label="Отсканировали QR-код"      val={stats.total_scans ?? stats.qr_scans} sub="кафе + доставка" />
+            <Metric s={s} accent={C.limeDeep} emoji="🎮" label="Начали игру"              val={stats.game_reached ?? 0} sub="воронка после скана" />
+            <Metric s={s} accent={C.good}     emoji="🏪" label="Сканы в кафе"             val={stats.cafe_scans ?? 0} />
+            <Metric s={s} accent={C.watch}    emoji="🚚" label="Сканы с доставки"         val={stats.delivery_scans ?? 0} />
+            <Metric s={s} accent={C.purple}   emoji="📬" label="Гости в базе"             val={stats.total_vk_subscribers} sub="группа + рассылка · всё время" />
             <Metric s={s} accent={C.good}     emoji="🎁" label="Новые в группе + подарок" val={stats.new_group_with_gift} />
             <Metric s={s} accent={C.limeDeep} emoji="🔄" label="Повторно сыграли"         val={stats.repeat_game_players} />
             <Metric s={s} accent={C.purple}   emoji="💰" label="Купили подарки за баллы"  val={stats.coin_purchasers} />
-            <Metric s={s} accent={C.purple}   emoji="📬" label="Подписки в сообщество ВК" val={stats.new_community_subscribers} />
-            <Metric s={s} accent={C.purple}   emoji="📨" label="Подписки на рассылку"     val={stats.new_newsletter_subscribers} />
+            <Metric s={s} accent={C.purple}   emoji="📬" label="Подписались в VK — всего" val={stats.new_community_subscribers} sub="кафе+доставка+сториз" />
+            <Metric s={s} accent={C.purple}   emoji="📨" label="Подписались на рассылку — всего" val={stats.new_newsletter_subscribers} sub="кафе+доставка+сториз" />
+            <Metric s={s} accent={C.purple}   emoji="🏪" label="В VK через кафе"          val={stats.community_subs_cafe ?? 0} />
+            <Metric s={s} accent={C.watch}    emoji="🚚" label="В VK через доставку"      val={stats.community_subs_delivery ?? 0} />
+            <Metric s={s} accent={C.limeDeep} emoji="📖" label="В VK через сториз"        val={stats.community_subs_story ?? 0} />
+            <Metric s={s} accent={C.purple}   emoji="🏪" label="Рассылка через кафе"      val={stats.newsletter_subs_cafe ?? 0} />
+            <Metric s={s} accent={C.watch}    emoji="🚚" label="Рассылка через доставку"  val={stats.newsletter_subs_delivery ?? 0} />
+            <Metric s={s} accent={C.limeDeep} emoji="📖" label="Рассылка через сториз"    val={stats.newsletter_subs_story ?? 0} />
             <Metric s={s} accent={C.good}     emoji="🎁" label="Получили первый подарок"  val={stats.first_gift_receivers} />
             <Metric s={s} accent={C.good}     emoji="✅" label="Активировали подарок"     val={stats.gift_activators} />
             <Metric s={s} accent={C.watch}    emoji="🎂" label="Поздравлений с ДР"        val={stats.birthday_greetings_sent} />
