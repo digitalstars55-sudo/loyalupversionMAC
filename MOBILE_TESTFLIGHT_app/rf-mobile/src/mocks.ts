@@ -834,9 +834,21 @@ export function buildGuestDetailFromGuest(g: Guest): GuestDetail {
 // ════════════════════════════════════════════════════════════════════
 export const MOCK_GENERAL_STATS: GeneralStats = {
   qr_scans:                    1842,
+  total_scans:                 2410,
+  cafe_scans:                  2280,
+  delivery_scans:               130,
+  game_reached:                2190,
   total_vk_subscribers:        4127,
   new_community_subscribers:    156,
   new_newsletter_subscribers:   148,
+  community_subs_cafe:          120,
+  community_subs_delivery:       18,
+  community_subs_story:          15,
+  community_subs_other:           3,
+  newsletter_subs_cafe:         118,
+  newsletter_subs_delivery:      16,
+  newsletter_subs_story:         12,
+  newsletter_subs_other:          2,
   new_group_with_gift:           93,
 
   repeat_game_players:          427,
