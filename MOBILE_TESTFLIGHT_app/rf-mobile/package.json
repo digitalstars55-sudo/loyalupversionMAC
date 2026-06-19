@@ -37,6 +37,7 @@
     "react-native-worklets": "^0.5.1"
   },
   "devDependencies": {
+    "@lottiefiles/dotlottie-react": "^0.13.5",
     "@types/react": "~19.1.0",
     "typescript": "~5.9.2"
   },
