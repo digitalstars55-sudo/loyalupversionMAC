@@ -248,13 +248,14 @@ export const MOCK_REVIEWS: Review[] = [
     draft_text: 'Здравствуйте! Конечно, забронируем стол на 4 человек в пятницу к 19:00. Уточните, пожалуйста, на какое имя оформлять и есть ли пожелания (у окна, у бара, тихий зал).',
   },
   {
-    id: 4, source: 'APP', sentiment: 'POSITIVE',
+    id: 4, source: 'VK_MESSAGE', sentiment: 'POSITIVE',
     ai_comment: 'Высокая оценка, гость хвалит пасту карбонара и обслуживание.',
-    branch_id: 1, branch_name: 'Набережная',
+    branch_id: 1, branch_name: 'Набережная', vk_sender_id: '111222333',
     customer_name: 'Екатерина Морозова',
     text: 'Лучшая карбонара в городе! Официант Андрей очень внимательный — спасибо.',
     rating: 5,
-    last_message_at: hrAgo(2), has_unread: false, is_replied: false,
+    last_message_at: hrAgo(2), has_unread: true, is_replied: false,
+    review_link_yandex: 'https://clck.ru/3UAbca', review_link_2gis: 'https://clck.ru/3UAbyD',
   },
   {
     id: 5, source: 'VK_MESSAGE', sentiment: 'PARTIALLY_NEGATIVE',

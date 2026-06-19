@@ -130,6 +130,20 @@ export const ReviewDetailModal: React.FC<{
     } finally { setRegenerating(false); }
   };
 
+  // Кнопка «Вставить ссылки» — только для позитивных отзывов, если у точки заданы обе ссылки.
+  const hasReviewLinks =
+    review.sentiment === 'POSITIVE' && !!review.review_link_yandex && !!review.review_link_2gis;
+  const onInsertLinks = () => {
+    const ya = review.review_link_yandex || '';
+    const gis = review.review_link_2gis || '';
+    if (ya && replyText.includes(ya)) return; // уже вставлено
+    haptic('light');
+    const block =
+      '\n\nБудем очень рады, если вы также оставите отзыв о нас на Яндекс Картах и в 2ГИС — это помогает другим гостям выбрать нас:\n' +
+      'Яндекс Карты: ' + ya + '\n2ГИС: ' + gis;
+    setReplyText((prev) => prev.replace(/\s+$/, '') + block);
+  };
+
   const onRejectDraft = () => {
     haptic('warning');
     Alert.alert(
@@ -345,6 +359,16 @@ export const ReviewDetailModal: React.FC<{
                   }
                   <Text style={s.btnAiText}>{showDraftBanner ? 'Перегенерировать' : 'AI-ответ'}</Text>
                 </Pressable>
+                {hasReviewLinks && (
+                  <Pressable
+                    style={[s.btn, s.btnAi, sending && { opacity: 0.5 }]}
+                    {...ripple()}
+                    onPress={onInsertLinks}
+                    disabled={sending}
+                  >
+                    <Text style={s.btnAiText}>🔗 Ссылки</Text>
+                  </Pressable>
+                )}
                 <Pressable
                   style={[s.btn, s.btnPrimary, (sending || !replyText.trim()) && { opacity: 0.5 }]}
                   {...ripple('rgba(255,255,255,0.22)')}

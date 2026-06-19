@@ -129,6 +129,9 @@ export interface Review {
   messages?: TestimonialMessage[];
   // Multi-staff: кто сейчас работает с отзывом (другие управляющие в данный момент)
   presence?: ReviewPresence[];
+  // Ссылки на отзыв-площадки точки (для кнопки «Вставить ссылки» на позитивных)
+  review_link_yandex?: string;
+  review_link_2gis?: string;
 }
 
 export type ReviewFilterKey = 'all' | 'negative' | 'pending' | 'replied' | 'app' | 'draft';
