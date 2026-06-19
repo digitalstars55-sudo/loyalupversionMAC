@@ -257,6 +257,39 @@ export interface Profile {
   tenant_domain?: string | null;   // напр. "demo.levone.ru" — мобайл переключает API_BASE
   tenant_name?: string | null;     // напр. "Кофейня Уют"
   companies?: TenantCompany[];     // все сети юзера — если >1, показываем выбор сети
+  is_superadmin?: boolean;         // платформенный суперадмин — видит сводную по ВСЕМ клиентам
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CROSS-TENANT OVERVIEW — сводная по всем клиентам (только superadmin)
+// ════════════════════════════════════════════════════════════════════
+export interface CrossOverviewRow {
+  name: string;
+  schema: string;
+  domain: string;
+  logo: string;
+  total_scans: number;
+  new_community: number;
+  new_newsletter: number;
+  stories: number;
+  reviews: number;
+  scan_index: number;
+  pos_guests: number;
+}
+export interface CrossOverviewTotals {
+  total_scans: number;
+  new_community: number;
+  new_newsletter: number;
+  stories: number;
+  reviews: number;
+  scan_index: number;
+  pos_guests: number;
+}
+export interface CrossOverview {
+  period: string;
+  client_count: number;
+  totals: CrossOverviewTotals;
+  rows: CrossOverviewRow[];
 }
 
 // ════════════════════════════════════════════════════════════════════

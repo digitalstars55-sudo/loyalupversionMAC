@@ -3,7 +3,7 @@ import type {
   SegmentInfo, Guest, FilterChipKey, RFMatrixResponse, Review, AutoReplySettings,
   ChatManager, ChatMessage, Campaign, RFMigration,
   Profile, Staff, StaffPermissions, SubscriptionStatus,
-  GuestDetail, GeneralStats, LoyaltyReport,
+  GuestDetail, GeneralStats, LoyaltyReport, CrossOverview,
   Product, ProductCategory, Quest, Promotion, DailyCode,
   AuditLogEntry, GuestBirthday,
   GiftAnalytic, QuestAnalytic, EngagementSummary,
@@ -615,6 +615,7 @@ export const MOCK_PROFILE: Profile = {
   full_name: 'Иванов Александр Сергеевич',
   role: 'owner',
   role_label: 'Владелец',
+  is_superadmin: true,
   city: 'Екатеринбург',
   birthday: '1988-04-12',
   birthday_set_at: new Date('2024-08-15T10:30:00Z').toISOString(),
@@ -890,6 +891,19 @@ export const MOCK_LOYALTY_REPORT: LoyaltyReport = {
   migration:    { promoted: 187, demoted: 91, new_users: 156, lost_users: 64 },
   sources:      { from_cafe: 1842, from_delivery: 568 },
   ai_summary:   'Отличный месяц для ЛоялUP: +15% к активной базе, открываемость рассылок 71% (выше среднего по индустрии), 187 гостей перешли в более активные сегменты. Зона внимания — VIP риск (145 чел) и Угасают (178) — рекомендую запустить персональные приглашения от управляющего на этой неделе.',
+};
+
+// ── Сводная по всем клиентам (superadmin) ───────────────────────────
+export const MOCK_CROSS_OVERVIEW: CrossOverview = {
+  period: '30d',
+  client_count: 4,
+  totals: { total_scans: 5708, new_community: 2106, new_newsletter: 2220, stories: 622, reviews: 1132, scan_index: 6.6, pos_guests: 11642 },
+  rows: [
+    { name: 'Levone', schema: 'levone', domain: '', logo: '', total_scans: 624, new_community: 173, new_newsletter: 209, stories: 66, reviews: 161, scan_index: 8.6, pos_guests: 7200 },
+    { name: 'Автосуши Орёл', schema: 'asap_orel', domain: '', logo: '', total_scans: 656, new_community: 194, new_newsletter: 216, stories: 62, reviews: 120, scan_index: 0, pos_guests: 0 },
+    { name: 'БИРФЕСТ', schema: 'birfest', domain: '', logo: '', total_scans: 993, new_community: 278, new_newsletter: 287, stories: 114, reviews: 44, scan_index: 0, pos_guests: 0 },
+    { name: 'Шавуха от Лео', schema: 'shavuha_ot_leo', domain: '', logo: '', total_scans: 426, new_community: 186, new_newsletter: 166, stories: 30, reviews: 95, scan_index: 4.9, pos_guests: 4442 },
+  ],
 };
 
 // ════════════════════════════════════════════════════════════════════

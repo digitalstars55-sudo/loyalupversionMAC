@@ -283,6 +283,7 @@ function AuthGate() {
           onLogout={onLogout}
           onSwitchTenant={multiTenant ? handleSwitchTenant : undefined}
           currentTenantName={activeTenant?.name || profile?.tenant_name || undefined}
+          isSuperadmin={!!profile?.is_superadmin}
         />
         {/* AI Лояльчик — плавает над всеми экранами после входа */}
         <LoyalchikAssistant />
@@ -334,10 +335,11 @@ function AuthGate() {
   }
 }
 
-function Root({ onLogout, onSwitchTenant, currentTenantName }: {
+function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
   onLogout: () => void;
   onSwitchTenant?: () => void;
   currentTenantName?: string;
+  isSuperadmin?: boolean;
 }) {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
@@ -685,6 +687,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName }: {
           onGuestVkIdConsumed={() => setPendingGuestVkId(null)}
           openSubScreen={pendingOpenMoreScreen}
           onSubScreenConsumed={() => setPendingOpenMoreScreen(null)}
+          isSuperadmin={isSuperadmin}
         />
       )}
       </ReAnimated.View>

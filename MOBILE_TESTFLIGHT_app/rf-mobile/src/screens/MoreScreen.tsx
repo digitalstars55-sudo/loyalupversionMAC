@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Sparkles, MessageSquare, Users, BarChart3, Store, SlidersHorizontal,
   HelpCircle, LogOut, ChevronRight, Phone, Bell, Bot, User, Megaphone, Shield,
-  Gift, Target, FolderTree, KeyRound, CloudOff,
+  Gift, Target, FolderTree, KeyRound, CloudOff, Globe,
 } from 'lucide-react-native';
 
 import ReAnimated, { SlideInRight } from 'react-native-reanimated';
@@ -24,6 +24,7 @@ import { ProfileScreen } from './ProfileScreen';
 import { StaffScreen } from './StaffScreen';
 import { HelpScreen } from './HelpScreen';
 import { GeneralStatsScreen } from './GeneralStatsScreen';
+import { CrossOverviewScreen } from './CrossOverviewScreen';
 import { ReportsScreen } from './ReportsScreen';
 import { CatalogScreen } from './CatalogScreen';
 import { CategoriesScreen } from './CategoriesScreen';
@@ -58,6 +59,7 @@ type SubScreen =
   | 'daily-codes'
   | 'audit-log'
   | 'push-prefs'
+  | 'cross-overview'
   | null;
 
 export const MoreScreen: React.FC<{
@@ -72,7 +74,8 @@ export const MoreScreen: React.FC<{
   onGuestVkIdConsumed?: () => void;
   openSubScreen?: string | null;
   onSubScreenConsumed?: () => void;
-}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout, onSwitchTenant, currentTenantName, openGuestVkId, onGuestVkIdConsumed, openSubScreen, onSubScreenConsumed }) => {
+  isSuperadmin?: boolean;
+}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout, onSwitchTenant, currentTenantName, openGuestVkId, onGuestVkIdConsumed, openSubScreen, onSubScreenConsumed, isSuperadmin }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
   const [sub, setSub] = useState<SubScreen>(
@@ -110,6 +113,7 @@ export const MoreScreen: React.FC<{
   else if (sub === 'general-stats') subEl = (
     <GeneralStatsScreen onBack={() => setSub(null)} onOpenReport={() => setSub('reports')} />
   );
+  else if (sub === 'cross-overview') subEl = <CrossOverviewScreen onBack={() => setSub(null)} />;
   else if (sub === 'reports')       subEl = <ReportsScreen       onBack={() => setSub(null)} />;
   else if (sub === 'catalog')       subEl = (
     <CatalogScreen onBack={() => setSub(null)} onOpenCategories={() => setSub('categories')} />
@@ -192,13 +196,24 @@ export const MoreScreen: React.FC<{
             />
             <MenuRow
               s={s}
-              last
+              last={!isSuperadmin}
               icon={<MessageSquare size={18} color={C.purpleDeep} strokeWidth={2} />}
               iconBg={C.purpleSoft}
               title="Отчёт"
               sub="Расширенный отчёт с PDF-выгрузкой"
               onPress={open('reports')}
             />
+            {isSuperadmin && (
+              <MenuRow
+                s={s}
+                last
+                icon={<Globe size={18} color={C.purpleDeep} strokeWidth={2} />}
+                iconBg={C.purpleSoft}
+                title="Сводная по клиентам"
+                sub="Статистика по всем клиентам платформы"
+                onPress={open('cross-overview')}
+              />
+            )}
           </View>
         </View>
 

@@ -2011,6 +2011,28 @@ export function makeStyles(r: Resp) {
     },
 
     // ════════════════════════════════════════════════════════════════
+    // CROSS-TENANT OVERVIEW — строки клиентов
+    // ════════════════════════════════════════════════════════════════
+    ovRow: {
+      backgroundColor: C.surface, borderRadius: 16, padding: 14,
+      borderWidth: 1, borderColor: C.line,
+    },
+    ovRowHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 10 },
+    ovAvatar: {
+      width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    ovAvatarTxt: { fontFamily: F.extrabold, fontSize: 13, color: C.purpleDeep },
+    ovRowName: { flex: 1, fontFamily: F.bold, fontSize: 15, color: C.ink },
+    ovIdx: { backgroundColor: C.goodSoft, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+    ovIdxTxt: { fontFamily: F.bold, fontSize: 12, color: C.good },
+    ovIdxDash: { fontFamily: F.medium, fontSize: 13, color: C.ink4 },
+    ovRowStats: { flexDirection: 'row', justifyContent: 'space-between' },
+    ovStat: { alignItems: 'center', flex: 1 },
+    ovStatVal: { fontFamily: F.extrabold, fontSize: 15, color: C.ink },
+    ovStatLabel: { fontFamily: F.medium, fontSize: 10, color: C.ink3, marginTop: 2 },
+
+    // ════════════════════════════════════════════════════════════════
     // GUEST DETAIL — визиты, монеты, VK-статус
     // ════════════════════════════════════════════════════════════════
     gdHero: {

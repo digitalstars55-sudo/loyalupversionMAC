@@ -2,7 +2,7 @@ import type {
   Mode, RFMatrixResponse, Guest, Review, AutoReplySettings,
   ChatMessage, ChatManager, Campaign, RFMigration, RFThresholds, RFBranch,
   Profile, Staff, SubscriptionStatus,
-  TestimonialMessage, GuestDetail, GeneralStats, LoyaltyReport,
+  TestimonialMessage, GuestDetail, GeneralStats, LoyaltyReport, CrossOverview,
   Product, ProductCategory, Quest, Promotion, DailyCode, CoinAdjustment,
   GuestCoinTxn, LoginCredentials, LoginResponse, AuditLogEntry, AuditActionType,
   SearchResults, SearchHit, GuestBirthday, GenderFilter,
@@ -12,7 +12,7 @@ import {
   MOCK, MOCK_DELIVERY, MOCK_GUESTS, MOCK_REVIEWS, DEFAULT_AUTO_REPLY_SETTINGS,
   MOCK_MANAGER, MOCK_MESSAGES, MOCK_CAMPAIGNS, MOCK_FULL_MIGRATIONS,
   MOCK_PROFILE, MOCK_STAFF, MOCK_SUBSCRIPTION,
-  MOCK_GUEST_DETAILS, MOCK_GENERAL_STATS, MOCK_LOYALTY_REPORT,
+  MOCK_GUEST_DETAILS, MOCK_GENERAL_STATS, MOCK_LOYALTY_REPORT, MOCK_CROSS_OVERVIEW,
   buildGuestDetailFromGuest,
   MOCK_CATEGORIES, MOCK_PRODUCTS, MOCK_QUESTS, MOCK_PROMOTIONS, MOCK_DAILY_CODES,
   nextProductId, nextCategoryId, nextQuestId, nextPromoId, nextDailyId,
@@ -1049,6 +1049,17 @@ export async function fetchGeneralStats(p: {
   // Бэк отдаёт { stats, charts, meta }; экранам нужен плоский GeneralStats.
   const j = await res.json();
   return (j && j.stats) ? j.stats : j;
+}
+
+// Сводная по ВСЕМ клиентам (только superadmin). Живёт на ПУБЛИЧНОМ домене
+// (levelupapp.ru), не на тенантском — поэтому API_BASE, не getApiBase().
+export async function fetchCrossOverview(period: string = '30d'): Promise<CrossOverview> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 350)); return MOCK_CROSS_OVERVIEW; }
+  const url = new URL('/api/v1/overview/stats/', API_BASE);
+  url.searchParams.set('period', period);
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  if (!res.ok) throw new Error(`Overview fetch failed: ${res.status}`);
+  return await res.json();
 }
 
 export async function fetchLoyaltyReport(p: {
