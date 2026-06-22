@@ -5,13 +5,13 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronLeft, Send } from 'lucide-react-native';
+import { ChevronLeft, Send, Sparkles, Link2 } from 'lucide-react-native';
 
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { relativeTime } from '../helpers';
-import { fetchReviewMessages, appendReviewMessage } from '../api';
+import { fetchReviewMessages, appendReviewMessage, regenerateDraft } from '../api';
 import { makeStyles } from '../styles';
 import type { TestimonialMessage } from '../types';
 
@@ -26,6 +26,8 @@ export interface CrossReviewTarget {
   sentiment_label: string;
   sentiment_class: string;
   rating?: number | null;
+  review_link_yandex?: string;
+  review_link_2gis?: string;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -45,6 +47,31 @@ export const CrossReviewReplyScreen: React.FC<{
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+
+  const onAiReply = async () => {
+    haptic('light'); setRegenerating(true);
+    try {
+      const { draft_text } = await regenerateDraft({ review_id: target.conversation_id, base: target.domain });
+      setReplyText(draft_text);
+      haptic('success');
+    } catch (e: any) {
+      haptic('error');
+      Alert.alert('AI-ответ недоступен', e?.message ?? 'Не удалось сгенерировать черновик.');
+    } finally { setRegenerating(false); }
+  };
+
+  const ya = target.review_link_yandex || '';
+  const gis = target.review_link_2gis || '';
+  const canInsertLinks = target.sentiment_class === 'pos' && !!ya && !!gis;
+  const onInsertLinks = () => {
+    if (ya && replyText.includes(ya)) return;
+    haptic('light');
+    const block =
+      '\n\nБудем очень рады, если вы также оставите отзыв о нас на Яндекс Картах и в 2ГИС — это помогает другим гостям выбрать нас:\n' +
+      'Яндекс Карты: ' + ya + '\n2ГИС: ' + gis;
+    setReplyText((prev) => prev.replace(/\s+$/, '') + block);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -118,8 +145,34 @@ export const CrossReviewReplyScreen: React.FC<{
           )}
         </ScrollView>
 
+        {/* Действия: AI-ответ + Вставить ссылки */}
+        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingTop: 8, backgroundColor: C.paper }}>
+          <Pressable
+            onPress={onAiReply}
+            disabled={regenerating}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: C.purpleSoft, backgroundColor: C.purpleSoft }}
+            {...ripple()}
+          >
+            {regenerating
+              ? <ActivityIndicator size="small" color={C.purpleDeep} />
+              : <Sparkles size={14} color={C.purpleDeep} strokeWidth={2.2} />}
+            <Text style={{ fontSize: 12.5, fontWeight: '700', color: C.purpleDeep }}>AI-ответ</Text>
+          </Pressable>
+
+          {canInsertLinks && (
+            <Pressable
+              onPress={onInsertLinks}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: C.line, backgroundColor: C.surface }}
+              {...ripple()}
+            >
+              <Link2 size={14} color={C.good} strokeWidth={2.2} />
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: C.ink2 }}>Вставить ссылки</Text>
+            </Pressable>
+          )}
+        </View>
+
         {/* Поле ответа */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 8 : 12, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.paper }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 8 : 12, borderTopWidth: 0, backgroundColor: C.paper }}>
           <TextInput
             value={replyText}
             onChangeText={setReplyText}

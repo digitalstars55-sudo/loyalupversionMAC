@@ -317,7 +317,9 @@ export interface CrossOverviewFeedItem {
   text: string;
   created_at: string;        // ISO
   sentiment_label: string;   // «Позитивный» / «Негативный» / …
-  sentiment_class: string;   // positive | negative | neutral | partial
+  sentiment_class: string;   // pos | neg | neu
+  review_link_yandex?: string;
+  review_link_2gis?: string;
 }
 export interface CrossOverview {
   period: string;

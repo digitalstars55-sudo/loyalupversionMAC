@@ -841,7 +841,7 @@ export async function updateAutoReplySettings(p: AutoReplySettings): Promise<voi
 }
 
 // Регенерация черновика для конкретного отзыва (если уже был — перезапишется)
-export async function regenerateDraft(p: { review_id: number }): Promise<{ draft_text: string }> {
+export async function regenerateDraft(p: { review_id: number; base?: string }): Promise<{ draft_text: string }> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 800));
     const variants = [
@@ -851,7 +851,7 @@ export async function regenerateDraft(p: { review_id: number }): Promise<{ draft
     ];
     return { draft_text: variants[Math.floor(Math.random() * variants.length)] };
   }
-  const res = await fetch(new URL(`/api/v1/analytics/reviews/${p.review_id}/regenerate-draft/`, getApiBase()).toString(), {
+  const res = await fetch(new URL(`/api/v1/analytics/reviews/${p.review_id}/regenerate-draft/`, normBase(p.base)).toString(), {
     method: 'POST',
     headers: { ...authHeaders() },
   });

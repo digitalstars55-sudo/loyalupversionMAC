@@ -145,6 +145,7 @@ const toTarget = (f: CrossOverviewReview): CrossReviewTarget => ({
   conversation_id: f.conversation_id, client: f.client, domain: f.domain,
   text: f.text, created_at: f.created_at,
   sentiment_label: f.sentiment_label, sentiment_class: f.sentiment_class, rating: f.rating,
+  review_link_yandex: f.review_link_yandex, review_link_2gis: f.review_link_2gis,
 });
 
 const ReviewRow: React.FC<{ f: CrossOverviewReview; onPress: () => void }> = ({ f, onPress }) => {

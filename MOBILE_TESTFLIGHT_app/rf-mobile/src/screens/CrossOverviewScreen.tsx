@@ -177,6 +177,7 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                       conversation_id: f.conversation_id, client: f.client, domain: f.domain,
                       text: f.text, created_at: f.created_at,
                       sentiment_label: f.sentiment_label, sentiment_class: f.sentiment_class,
+                      review_link_yandex: f.review_link_yandex, review_link_2gis: f.review_link_2gis,
                     }); }} />
                   ))}
                 </View>
