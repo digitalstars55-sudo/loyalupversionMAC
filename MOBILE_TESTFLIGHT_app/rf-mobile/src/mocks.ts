@@ -7,7 +7,7 @@ import type {
   Product, ProductCategory, Quest, Promotion, DailyCode,
   AuditLogEntry, GuestBirthday,
   GiftAnalytic, QuestAnalytic, EngagementSummary,
-  ContactPointsResponse,
+  ContactPointsResponse, CrossOverviewReviewsResponse,
 } from './types';
 
 // ════════════════════════════════════════════════════════════════════
@@ -906,9 +906,20 @@ export const MOCK_CROSS_OVERVIEW: CrossOverview = {
     { name: 'Шавуха от Лео', schema: 'shavuha_ot_leo', domain: '', logo: '', total_scans: 426, new_community: 186, new_newsletter: 166, stories: 30, reviews: 95, scan_index: 4.9, pos_guests: 4442 },
   ],
   feed: [
-    { client: 'Levone', logo: '', domain: '', conversation_id: 1, text: 'Очень вкусно, спасибо! Приду ещё.', created_at: new Date(_now - 3600 * 1000).toISOString(), sentiment_label: 'Позитивный', sentiment_class: 'positive' },
-    { client: 'Автосуши Орёл', logo: '', domain: '', conversation_id: 2, text: 'Долго ждали доставку, остыло.', created_at: new Date(_now - 7200 * 1000).toISOString(), sentiment_label: 'Негативный', sentiment_class: 'negative' },
-    { client: 'БИРФЕСТ', logo: '', domain: '', conversation_id: 3, text: 'Норм, но дороговато.', created_at: new Date(_now - 10800 * 1000).toISOString(), sentiment_label: 'Частично негативный', sentiment_class: 'partial' },
+    { client: 'Levone', logo: '', domain: '', conversation_id: 1, text: 'Очень вкусно, спасибо! Приду ещё.', created_at: new Date(_now - 3600 * 1000).toISOString(), sentiment_label: 'Позитивный', sentiment_class: 'pos' },
+    { client: 'Автосуши Орёл', logo: '', domain: '', conversation_id: 2, text: 'Долго ждали доставку, остыло.', created_at: new Date(_now - 7200 * 1000).toISOString(), sentiment_label: 'Негативный', sentiment_class: 'neg' },
+    { client: 'БИРФЕСТ', logo: '', domain: '', conversation_id: 3, text: 'Норм, но дороговато.', created_at: new Date(_now - 10800 * 1000).toISOString(), sentiment_label: 'Частично негативный', sentiment_class: 'neg' },
+  ],
+};
+
+export const MOCK_CROSS_REVIEWS: CrossOverviewReviewsResponse = {
+  period: '30d', sentiment: 'all',
+  start: '2026-05-24', end: '2026-06-23',
+  total: 3, page: 1, num_pages: 1,
+  results: [
+    { client: 'Levone', logo: '', domain: '', conversation_id: 1, text: 'Очень вкусно, спасибо! Приду ещё.', created_at: new Date(_now - 3600 * 1000).toISOString(), rating: 5, sentiment_label: 'Позитивный', sentiment_class: 'pos' },
+    { client: 'Автосуши Орёл', logo: '', domain: '', conversation_id: 2, text: 'Долго ждали доставку, остыло.', created_at: new Date(_now - 7200 * 1000).toISOString(), rating: 2, sentiment_label: 'Негативный', sentiment_class: 'neg' },
+    { client: 'БИРФЕСТ', logo: '', domain: '', conversation_id: 3, text: 'Норм, но дороговато.', created_at: new Date(_now - 10800 * 1000).toISOString(), rating: 3, sentiment_label: 'Нейтральный', sentiment_class: 'neu' },
   ],
 };
 

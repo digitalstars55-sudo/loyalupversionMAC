@@ -13,12 +13,14 @@ import { makeStyles } from '../styles';
 import { Skeleton } from '../components/Skeleton';
 import { Chip } from '../components/Common';
 import { DateRangeModal, type DateRange } from '../components/DateRangeModal';
+import { CrossOverviewReviewsScreen } from './CrossOverviewReviewsScreen';
 import type { CrossOverview, CrossOverviewFeedItem } from '../types';
 import type { S } from '../styles';
 
-// Цвет бейджа тональности отзыва (как на вебе /admin/overview/)
+// Цвет бейджа тональности отзыва. Бэк отдаёт sentiment_class = pos|neg|neu
+// (PARTIALLY_NEGATIVE тоже приходит как 'neg' — красный, как на вебе).
 const SENT_COLOR: Record<string, string> = {
-  positive: C.good, negative: C.warn, partial: C.watch, neutral: '#6b7280',
+  pos: C.good, neg: C.warn, neu: '#6b7280',
 };
 
 // ════════════════════════════════════════════════════════════════════
@@ -54,6 +56,7 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
   const [period, setPeriod] = useState('30d');
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [showReviews, setShowReviews] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -70,6 +73,10 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
   const onRefresh = () => { haptic('light'); setRefreshing(true); load(); };
 
   const t = data?.totals;
+
+  if (showReviews) {
+    return <CrossOverviewReviewsScreen onBack={() => setShowReviews(false)} period={period} customRange={customRange} />;
+  }
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
@@ -152,8 +159,11 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             {/* Лента отзывов по всем клиентам (топ-20) */}
             {data!.feed && data!.feed.length > 0 && (
               <>
-                <View style={[s.filterBlock, { marginTop: 20 }]}>
+                <View style={[s.filterBlock, { marginTop: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
                   <Text style={s.filterLabel}>Последние отзывы · все клиенты</Text>
+                  <Pressable onPress={() => { haptic('light'); setShowReviews(true); }} hitSlop={8}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: C.purpleDeep }}>Все отзывы →</Text>
+                  </Pressable>
                 </View>
                 <View style={{ paddingHorizontal: r.pad, gap: 8 }}>
                   {data!.feed.map((f, i) => <FeedRow key={`${f.conversation_id}_${i}`} f={f} />)}

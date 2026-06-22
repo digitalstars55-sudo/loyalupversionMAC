@@ -327,6 +327,21 @@ export interface CrossOverview {
   feed?: CrossOverviewFeedItem[];   // лента последних отзывов по всем клиентам (топ-20)
 }
 
+// Полная страница «Все отзывы» — /api/v1/overview/reviews/ (пагинация + фильтр)
+export interface CrossOverviewReview extends CrossOverviewFeedItem {
+  rating?: number | null;
+}
+export interface CrossOverviewReviewsResponse {
+  period: string;
+  sentiment: string;
+  start: string;
+  end: string;
+  total: number;
+  page: number;
+  num_pages: number;
+  results: CrossOverviewReview[];
+}
+
 // ════════════════════════════════════════════════════════════════════
 // STAFF / RBAC — управление сотрудниками и правами доступа
 // ════════════════════════════════════════════════════════════════════

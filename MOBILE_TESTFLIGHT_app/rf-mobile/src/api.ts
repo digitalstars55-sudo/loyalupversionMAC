@@ -7,7 +7,7 @@ import type {
   GuestCoinTxn, LoginCredentials, LoginResponse, AuditLogEntry, AuditActionType,
   SearchResults, SearchHit, GuestBirthday, GenderFilter,
   GiftAnalytic, QuestAnalytic, EngagementSummary,
-  ContactPointsResponse,
+  ContactPointsResponse, CrossOverviewReviewsResponse,
 } from './types';
 import {
   MOCK, MOCK_DELIVERY, MOCK_GUESTS, MOCK_REVIEWS, DEFAULT_AUTO_REPLY_SETTINGS,
@@ -19,7 +19,7 @@ import {
   nextProductId, nextCategoryId, nextQuestId, nextPromoId, nextDailyId,
   MOCK_AUDIT_LOG, MOCK_BIRTHDAYS,
   MOCK_GIFTS_ANALYTICS, MOCK_QUESTS_ANALYTICS, MOCK_ENGAGEMENT_SUMMARY,
-  MOCK_CONTACT_POINTS,
+  MOCK_CONTACT_POINTS, MOCK_CROSS_REVIEWS,
 } from './mocks';
 import { cacheSet, withCache } from './storage';
 import { isForceOffline, markOffline, markOnline } from './network';
@@ -1093,6 +1093,26 @@ export async function fetchCrossOverview(p: { period?: string; start_date?: stri
   }
   const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Overview fetch failed: ${res.status}`);
+  return await res.json();
+}
+
+// Полная страница «Все отзывы» по всем клиентам (superadmin). Публичный домен.
+export async function fetchCrossOverviewReviews(p: {
+  period?: string; start_date?: string; end_date?: string;
+  sentiment?: string; page?: number;
+}): Promise<CrossOverviewReviewsResponse> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 300)); return MOCK_CROSS_REVIEWS; }
+  const url = new URL('/api/v1/overview/reviews/', API_BASE);
+  if (p.start_date && p.end_date) {
+    url.searchParams.set('start', p.start_date);
+    url.searchParams.set('end',   p.end_date);
+  } else {
+    url.searchParams.set('period', p.period || '30d');
+  }
+  url.searchParams.set('sentiment', p.sentiment || 'all');
+  url.searchParams.set('page', String(p.page || 1));
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  if (!res.ok) throw new Error(`Overview reviews fetch failed: ${res.status}`);
   return await res.json();
 }
 
