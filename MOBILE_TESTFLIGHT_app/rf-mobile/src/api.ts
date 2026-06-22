@@ -1081,10 +1081,16 @@ export async function fetchContactPoints(p: {
 
 // Сводная по ВСЕМ клиентам (только superadmin). Живёт на ПУБЛИЧНОМ домене
 // (levelupapp.ru), не на тенантском — поэтому API_BASE, не getApiBase().
-export async function fetchCrossOverview(period: string = '30d'): Promise<CrossOverview> {
+export async function fetchCrossOverview(p: { period?: string; start_date?: string; end_date?: string } | string = '30d'): Promise<CrossOverview> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 350)); return MOCK_CROSS_OVERVIEW; }
+  const opt = typeof p === 'string' ? { period: p } : p;
   const url = new URL('/api/v1/overview/stats/', API_BASE);
-  url.searchParams.set('period', period);
+  if (opt.start_date && opt.end_date) {
+    url.searchParams.set('start', opt.start_date);
+    url.searchParams.set('end',   opt.end_date);
+  } else {
+    url.searchParams.set('period', opt.period || '30d');
+  }
   const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Overview fetch failed: ${res.status}`);
   return await res.json();

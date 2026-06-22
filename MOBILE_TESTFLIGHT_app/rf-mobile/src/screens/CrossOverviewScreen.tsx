@@ -7,13 +7,19 @@ import { ChevronLeft } from 'lucide-react-native';
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
-import { fmtNum } from '../helpers';
+import { fmtNum, relativeTime } from '../helpers';
 import { fetchCrossOverview } from '../api';
 import { makeStyles } from '../styles';
 import { Skeleton } from '../components/Skeleton';
 import { Chip } from '../components/Common';
-import type { CrossOverview } from '../types';
+import { DateRangeModal, type DateRange } from '../components/DateRangeModal';
+import type { CrossOverview, CrossOverviewFeedItem } from '../types';
 import type { S } from '../styles';
+
+// Цвет бейджа тональности отзыва (как на вебе /admin/overview/)
+const SENT_COLOR: Record<string, string> = {
+  positive: C.good, negative: C.warn, partial: C.watch, neutral: '#6b7280',
+};
 
 // ════════════════════════════════════════════════════════════════════
 // CROSS-TENANT OVERVIEW — сводная по всем клиентам (только superadmin)
@@ -46,15 +52,21 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
 
   const [data, setData] = useState<CrossOverview | null>(null);
   const [period, setPeriod] = useState('30d');
+  const [customRange, setCustomRange] = useState<DateRange | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = async () => {
     try {
-      setData(await fetchCrossOverview(period));
+      setData(await fetchCrossOverview(
+        customRange
+          ? { start_date: customRange.start_date, end_date: customRange.end_date }
+          : { period }
+      ));
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [period]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [period, customRange]);
   const onRefresh = () => { haptic('light'); setRefreshing(true); load(); };
 
   const t = data?.totals;
@@ -83,10 +95,13 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
           <Text style={s.filterLabel}>Период</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow}>
             {OV_PERIODS.map(p => (
-              <Chip key={p.code} active={period === p.code} onPress={() => { haptic('light'); setPeriod(p.code); }} s={s}>
+              <Chip key={p.code} active={!customRange && period === p.code} onPress={() => { haptic('light'); setCustomRange(null); setPeriod(p.code); }} s={s}>
                 {p.label}
               </Chip>
             ))}
+            <Chip active={!!customRange} onPress={() => { haptic('light'); setDatePickerOpen(true); }} s={s}>
+              {customRange ? customRange.display : '📅 Произвольно'}
+            </Chip>
           </ScrollView>
         </View>
 
@@ -134,6 +149,18 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
               ))}
             </View>
 
+            {/* Лента отзывов по всем клиентам (топ-20) */}
+            {data!.feed && data!.feed.length > 0 && (
+              <>
+                <View style={[s.filterBlock, { marginTop: 20 }]}>
+                  <Text style={s.filterLabel}>Последние отзывы · все клиенты</Text>
+                </View>
+                <View style={{ paddingHorizontal: r.pad, gap: 8 }}>
+                  {data!.feed.map((f, i) => <FeedRow key={`${f.conversation_id}_${i}`} f={f} />)}
+                </View>
+              </>
+            )}
+
             <View style={[s.modalHint, { marginHorizontal: r.pad, marginTop: 12, marginBottom: 8 }]}>
               <Text style={s.modalHintText}>
                 Сводка по всем подключённым клиентам за период. Сканирования = кафе + доставка. Индекс — где есть данные кассы (POS).
@@ -142,7 +169,31 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
           </>
         )}
       </ScrollView>
+
+      <DateRangeModal
+        visible={datePickerOpen}
+        initial={customRange ? { start_date: customRange.start_date, end_date: customRange.end_date } : undefined}
+        onClose={() => setDatePickerOpen(false)}
+        onApply={(range) => { haptic('light'); setCustomRange(range); setDatePickerOpen(false); }}
+        s={s}
+      />
     </SafeAreaView>
+  );
+};
+
+const FeedRow: React.FC<{ f: CrossOverviewFeedItem }> = ({ f }) => {
+  const color = SENT_COLOR[f.sentiment_class] || '#6b7280';
+  return (
+    <View style={{ backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.line, padding: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <Text style={{ fontSize: 12, fontWeight: '700', color: C.ink, flex: 1 }} numberOfLines={1}>{f.client}</Text>
+        <View style={{ backgroundColor: color, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 8 }}>
+          <Text style={{ color: '#fff', fontSize: 9.5, fontWeight: '700' }}>{f.sentiment_label}</Text>
+        </View>
+      </View>
+      <Text style={{ fontSize: 13, color: C.ink2, lineHeight: 18 }} numberOfLines={4}>{f.text}</Text>
+      <Text style={{ fontSize: 11, color: C.ink4, marginTop: 5 }}>{relativeTime(f.created_at)}</Text>
+    </View>
   );
 };
 

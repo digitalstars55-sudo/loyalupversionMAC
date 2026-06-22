@@ -309,11 +309,22 @@ export interface CrossOverviewTotals {
   scan_index: number;
   pos_guests: number;
 }
+export interface CrossOverviewFeedItem {
+  client: string;
+  logo: string;
+  domain: string;
+  conversation_id: number;
+  text: string;
+  created_at: string;        // ISO
+  sentiment_label: string;   // «Позитивный» / «Негативный» / …
+  sentiment_class: string;   // positive | negative | neutral | partial
+}
 export interface CrossOverview {
   period: string;
   client_count: number;
   totals: CrossOverviewTotals;
   rows: CrossOverviewRow[];
+  feed?: CrossOverviewFeedItem[];   // лента последних отзывов по всем клиентам (топ-20)
 }
 
 // ════════════════════════════════════════════════════════════════════
