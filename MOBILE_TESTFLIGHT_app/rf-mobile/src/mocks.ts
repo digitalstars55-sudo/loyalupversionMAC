@@ -7,6 +7,7 @@ import type {
   Product, ProductCategory, Quest, Promotion, DailyCode,
   AuditLogEntry, GuestBirthday,
   GiftAnalytic, QuestAnalytic, EngagementSummary,
+  ContactPointsResponse,
 } from './types';
 
 // ════════════════════════════════════════════════════════════════════
@@ -904,6 +905,16 @@ export const MOCK_CROSS_OVERVIEW: CrossOverview = {
     { name: 'БИРФЕСТ', schema: 'birfest', domain: '', logo: '', total_scans: 993, new_community: 278, new_newsletter: 287, stories: 114, reviews: 44, scan_index: 0, pos_guests: 0 },
     { name: 'Шавуха от Лео', schema: 'shavuha_ot_leo', domain: '', logo: '', total_scans: 426, new_community: 186, new_newsletter: 166, stories: 30, reviews: 95, scan_index: 4.9, pos_guests: 4442 },
   ],
+};
+
+export const MOCK_CONTACT_POINTS: ContactPointsResponse = {
+  rows: [
+    { id: 1, name: 'Детская зона — листовка', branch: 'Центр', mode: 'В кафе (на месте)', is_active: true,  scans: 142, guests: 98, subscribed: 41, played: 63, activated: 27, conversion: 42 },
+    { id: 2, name: 'Флаер у кассы',           branch: 'Центр', mode: 'В кафе (на месте)', is_active: true,  scans: 86,  guests: 71, subscribed: 19, played: 38, activated: 12, conversion: 27 },
+    { id: 3, name: 'Коробка доставки',        branch: 'Центр', mode: 'Доставка',          is_active: true,  scans: 54,  guests: 50, subscribed: 22, played: 31, activated: 18, conversion: 44 },
+  ],
+  totals: { scans: 282, guests: 219, subscribed: 82, played: 132, activated: 57, conversion: 37 },
+  meta: { start: '2026-05-24', end: '2026-06-23', branch_ids: [] },
 };
 
 // ════════════════════════════════════════════════════════════════════

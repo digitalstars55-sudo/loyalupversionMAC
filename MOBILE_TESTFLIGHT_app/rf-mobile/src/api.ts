@@ -7,6 +7,7 @@ import type {
   GuestCoinTxn, LoginCredentials, LoginResponse, AuditLogEntry, AuditActionType,
   SearchResults, SearchHit, GuestBirthday, GenderFilter,
   GiftAnalytic, QuestAnalytic, EngagementSummary,
+  ContactPointsResponse,
 } from './types';
 import {
   MOCK, MOCK_DELIVERY, MOCK_GUESTS, MOCK_REVIEWS, DEFAULT_AUTO_REPLY_SETTINGS,
@@ -18,6 +19,7 @@ import {
   nextProductId, nextCategoryId, nextQuestId, nextPromoId, nextDailyId,
   MOCK_AUDIT_LOG, MOCK_BIRTHDAYS,
   MOCK_GIFTS_ANALYTICS, MOCK_QUESTS_ANALYTICS, MOCK_ENGAGEMENT_SUMMARY,
+  MOCK_CONTACT_POINTS,
 } from './mocks';
 import { cacheSet, withCache } from './storage';
 import { isForceOffline, markOffline, markOnline } from './network';
@@ -1049,6 +1051,32 @@ export async function fetchGeneralStats(p: {
   // Бэк отдаёт { stats, charts, meta }; экранам нужен плоский GeneralStats.
   const j = await res.json();
   return (j && j.stats) ? j.stats : j;
+}
+
+// Воронка по точкам контакта (отслеживаемым QR) — /api/v1/analytics/contact-points/
+export async function fetchContactPoints(p: {
+  branch_ids?: number[];
+  period_days?: number;
+  start_date?: string;
+  end_date?: string;
+}): Promise<ContactPointsResponse> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 300)); return MOCK_CONTACT_POINTS; }
+  const url = new URL('/api/v1/analytics/contact-points/', getApiBase());
+  if (p.branch_ids?.length) url.searchParams.set('branch_ids', p.branch_ids.join(','));
+  if (p.start_date && p.end_date) {
+    url.searchParams.set('start', p.start_date);
+    url.searchParams.set('end',   p.end_date);
+  } else if (p.period_days) {
+    // Бэк ждёт period как enum ЛИБО start/end. period_days произвольное → шлём диапазон.
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - (p.period_days - 1));
+    url.searchParams.set('start', start.toISOString().slice(0, 10));
+    url.searchParams.set('end',   end.toISOString().slice(0, 10));
+  }
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  if (!res.ok) throw new Error(`Contact points fetch failed: ${res.status}`);
+  return await res.json();
 }
 
 // Сводная по ВСЕМ клиентам (только superadmin). Живёт на ПУБЛИЧНОМ домене

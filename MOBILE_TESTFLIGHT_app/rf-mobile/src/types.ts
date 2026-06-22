@@ -28,6 +28,30 @@ export interface RFBranch {
   city?: string;
 }
 
+// Воронка по точкам контакта (отслеживаемым QR) — /api/v1/analytics/contact-points/
+export interface ContactPointRow {
+  id: number;
+  name: string;
+  branch: string;
+  mode: string;           // «В кафе (на месте)» | «Доставка»
+  is_active: boolean;
+  scans: number;
+  guests: number;
+  subscribed: number;
+  played: number;
+  activated: number;
+  conversion: number;     // подписались ÷ гости, %
+}
+
+export interface ContactPointsResponse {
+  rows: ContactPointRow[];
+  totals: {
+    scans: number; guests: number; subscribed: number;
+    played: number; activated: number; conversion: number;
+  };
+  meta: { start: string; end: string; branch_ids: number[] };
+}
+
 export interface RFMatrixResponse {
   thresholds: RFThresholds;
   thresholds_source: 'branch' | 'global' | 'default';

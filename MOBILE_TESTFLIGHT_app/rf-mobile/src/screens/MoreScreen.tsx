@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Sparkles, MessageSquare, Users, BarChart3, Store, SlidersHorizontal,
   HelpCircle, LogOut, ChevronRight, Phone, Bell, Bot, User, Megaphone, Shield,
-  Gift, Target, FolderTree, KeyRound, CloudOff, Globe,
+  Gift, Target, FolderTree, KeyRound, CloudOff, Globe, QrCode,
 } from 'lucide-react-native';
 
 import ReAnimated, { SlideInRight } from 'react-native-reanimated';
@@ -25,6 +25,7 @@ import { StaffScreen } from './StaffScreen';
 import { HelpScreen } from './HelpScreen';
 import { GeneralStatsScreen } from './GeneralStatsScreen';
 import { CrossOverviewScreen } from './CrossOverviewScreen';
+import { ContactPointsScreen } from './ContactPointsScreen';
 import { ReportsScreen } from './ReportsScreen';
 import { CatalogScreen } from './CatalogScreen';
 import { CategoriesScreen } from './CategoriesScreen';
@@ -51,6 +52,7 @@ type SubScreen =
   | 'staff'
   | 'help'
   | 'general-stats'
+  | 'contact-points'
   | 'reports'
   | 'catalog'
   | 'categories'
@@ -113,6 +115,7 @@ export const MoreScreen: React.FC<{
   else if (sub === 'general-stats') subEl = (
     <GeneralStatsScreen onBack={() => setSub(null)} onOpenReport={() => setSub('reports')} />
   );
+  else if (sub === 'contact-points') subEl = <ContactPointsScreen onBack={() => setSub(null)} />;
   else if (sub === 'cross-overview') subEl = <CrossOverviewScreen onBack={() => setSub(null)} />;
   else if (sub === 'reports')       subEl = <ReportsScreen       onBack={() => setSub(null)} />;
   else if (sub === 'catalog')       subEl = (
@@ -193,6 +196,14 @@ export const MoreScreen: React.FC<{
               title="Общая статистика"
               sub="QR, рассылки, ДР, индекс сканирования"
               onPress={open('general-stats')}
+            />
+            <MenuRow
+              s={s}
+              icon={<QrCode size={18} color={C.purpleDeep} strokeWidth={2} />}
+              iconBg={C.purpleSoft}
+              title="Точки контакта"
+              sub="Конверсия по каждому QR-коду"
+              onPress={open('contact-points')}
             />
             <MenuRow
               s={s}
