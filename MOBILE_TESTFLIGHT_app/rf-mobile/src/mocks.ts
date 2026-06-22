@@ -898,12 +898,17 @@ export const MOCK_LOYALTY_REPORT: LoyaltyReport = {
 export const MOCK_CROSS_OVERVIEW: CrossOverview = {
   period: '30d',
   client_count: 4,
-  totals: { total_scans: 5708, new_community: 2106, new_newsletter: 2220, stories: 622, reviews: 1132, scan_index: 6.6, pos_guests: 11642 },
+  totals: { total_scans: 5708, new_community: 2106, new_newsletter: 2220, stories: 622, reviews: 1132, scan_index: 6.6, pos_guests: 11642,
+    gift_cost: 8500, service_cost: 65000, total_cost: 73500, sub_contacts: 4326, unique_digitized: 3010, cost_per_contact: 16.99, cost_per_unique: 24.42 },
   rows: [
-    { name: 'Levone', schema: 'levone', domain: '', logo: '', total_scans: 624, new_community: 173, new_newsletter: 209, stories: 66, reviews: 161, scan_index: 8.6, pos_guests: 7200 },
-    { name: 'Автосуши Орёл', schema: 'asap_orel', domain: '', logo: '', total_scans: 656, new_community: 194, new_newsletter: 216, stories: 62, reviews: 120, scan_index: 0, pos_guests: 0 },
-    { name: 'БИРФЕСТ', schema: 'birfest', domain: '', logo: '', total_scans: 993, new_community: 278, new_newsletter: 287, stories: 114, reviews: 44, scan_index: 0, pos_guests: 0 },
-    { name: 'Шавуха от Лео', schema: 'shavuha_ot_leo', domain: '', logo: '', total_scans: 426, new_community: 186, new_newsletter: 166, stories: 30, reviews: 95, scan_index: 4.9, pos_guests: 4442 },
+    { name: 'Levone', schema: 'levone', domain: '', logo: '', total_scans: 624, new_community: 173, new_newsletter: 209, stories: 66, reviews: 161, scan_index: 8.6, pos_guests: 7200,
+      gift_cost: 3200, service_cost: 19600, total_cost: 22800, sub_contacts: 382, unique_digitized: 268, cost_per_contact: 59.69, cost_per_unique: 85.07 },
+    { name: 'Автосуши Орёл', schema: 'asap_orel', domain: '', logo: '', total_scans: 656, new_community: 194, new_newsletter: 216, stories: 62, reviews: 120, scan_index: 0, pos_guests: 0,
+      gift_cost: 1800, service_cost: 14700, total_cost: 16500, sub_contacts: 410, unique_digitized: 286, cost_per_contact: 40.24, cost_per_unique: 57.69 },
+    { name: 'БИРФЕСТ', schema: 'birfest', domain: '', logo: '', total_scans: 993, new_community: 278, new_newsletter: 287, stories: 114, reviews: 44, scan_index: 0, pos_guests: 0,
+      gift_cost: 2400, service_cost: 19600, total_cost: 22000, sub_contacts: 565, unique_digitized: 392, cost_per_contact: 38.94, cost_per_unique: 56.12 },
+    { name: 'Шавуха от Лео', schema: 'shavuha_ot_leo', domain: '', logo: '', total_scans: 426, new_community: 186, new_newsletter: 166, stories: 30, reviews: 95, scan_index: 4.9, pos_guests: 4442,
+      gift_cost: 1100, service_cost: 11100, total_cost: 12200, sub_contacts: 352, unique_digitized: 246, cost_per_contact: 34.66, cost_per_unique: 49.59 },
   ],
   feed: [
     { client: 'Levone', logo: '', domain: '', conversation_id: 1, text: 'Очень вкусно, спасибо! Приду ещё.', created_at: new Date(_now - 3600 * 1000).toISOString(), sentiment_label: 'Позитивный', sentiment_class: 'pos' },

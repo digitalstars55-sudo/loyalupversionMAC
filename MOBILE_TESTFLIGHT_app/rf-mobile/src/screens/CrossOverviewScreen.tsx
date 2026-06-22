@@ -7,7 +7,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
-import { fmtNum, relativeTime } from '../helpers';
+import { fmtNum, fmtRub, fmtRubUnit, relativeTime } from '../helpers';
 import { fetchCrossOverview } from '../api';
 import { makeStyles } from '../styles';
 import { Skeleton } from '../components/Skeleton';
@@ -46,6 +46,20 @@ const OvTotal: React.FC<{ accent: string; emoji: string; label: string; val: num
       <View style={{ position: 'absolute', top: 0, left: 14, width: 28, height: 3, backgroundColor: accent, borderBottomLeftRadius: 3, borderBottomRightRadius: 3 }} />
       <Text style={{ fontSize: 11, color: C.ink3, lineHeight: 15, marginBottom: 6 }} numberOfLines={2}>{emoji} {label}</Text>
       <Text style={{ fontSize: 26, fontWeight: '800', color: C.ink, letterSpacing: -0.8 }} numberOfLines={1}>{fmtNum(val)}</Text>
+    </View>
+  );
+
+// Денежная карточка «Экономики» — значение приходит уже отформатированным.
+const MoneyCard: React.FC<{ accent: string; emoji: string; label: string; value: string; muted?: boolean }> =
+  ({ accent, emoji, label, value, muted }) => (
+    <View style={{
+      width: '48%', flexGrow: 1, minHeight: 92,
+      backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.line,
+      paddingHorizontal: 14, paddingTop: 14, paddingBottom: 12, overflow: 'hidden',
+    }}>
+      <View style={{ position: 'absolute', top: 0, left: 14, width: 28, height: 3, backgroundColor: accent, borderBottomLeftRadius: 3, borderBottomRightRadius: 3 }} />
+      <Text style={{ fontSize: 11, color: C.ink3, lineHeight: 15, marginBottom: 6 }} numberOfLines={2}>{emoji} {label}</Text>
+      <Text style={{ fontSize: muted ? 15 : 21, fontWeight: '800', color: muted ? C.ink3 : C.ink, letterSpacing: -0.5 }} numberOfLines={1}>{value}</Text>
     </View>
   );
 
@@ -137,6 +151,26 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
               <OvTotal accent={C.watch}    emoji="⭐" label="Новые отзывы"         val={t.reviews} />
             </View>
 
+            {/* ───── Экономика клиента ───── */}
+            <View style={s.filterBlock}>
+              <Text style={s.filterLabel}>💰 Экономика клиента</Text>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: r.pad, marginBottom: 18 }}>
+              <MoneyCard accent={C.warn}     emoji="🎁" label="Затраты на подарки"    value={fmtRub(t.gift_cost)} />
+              <MoneyCard accent={C.ink3}     emoji="🧾" label="Стоимость обслуживания" value={fmtRub(t.service_cost)} />
+              <MoneyCard accent={C.good}     emoji="💼" label="Общие затраты"          value={fmtRub(t.total_cost)} />
+              <MoneyCard accent={C.purple}   emoji="📨" label="Цена подп. контакта"    value={fmtRubUnit(t.cost_per_contact)} muted={t.cost_per_contact == null} />
+              <MoneyCard accent={C.limeDeep} emoji="🧑‍💻" label="Цена уник. клиента"     value={fmtRubUnit(t.cost_per_unique)} muted={t.cost_per_unique == null} />
+            </View>
+            <View style={[s.modalHint, { marginHorizontal: r.pad, marginBottom: 18 }]}>
+              <Text style={s.modalHintText}>
+                Подарки = себестоимость активированных подарков за период (снимок на момент активации).
+                Общие затраты = обслуживание + подарки. Цена контакта = общие затраты / (подписки VK + рассылка);
+                один гость может дать 2 контакта. Цена уникального = общие затраты / уник. гостей, подписавшихся
+                хотя бы на один канал (гость считается 1 раз).
+              </Text>
+            </View>
+
             {/* Список клиентов */}
             <View style={s.filterBlock}>
               <Text style={s.filterLabel}>Клиенты и показатели · {data!.client_count}</Text>
@@ -157,6 +191,13 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                     <OvStat s={s} label="Рассылка" val={row.new_newsletter} />
                     <OvStat s={s} label="Stories" val={row.stories} />
                     <OvStat s={s} label="Отзывы"  val={row.reviews} />
+                  </View>
+                  {/* Экономика по клиенту */}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.line }}>
+                    <EconStat label="Подарки" value={fmtRub(row.gift_cost)} />
+                    <EconStat label="Общие" value={fmtRub(row.total_cost)} />
+                    <EconStat label="Цена контакта" value={fmtRubUnit(row.cost_per_contact)} muted={row.cost_per_contact == null} />
+                    <EconStat label="Цена уник." value={fmtRubUnit(row.cost_per_unique)} muted={row.cost_per_unique == null} />
                   </View>
                 </View>
               ))}
@@ -227,5 +268,13 @@ const OvStat: React.FC<{ s: S; label: string; val: number }> = ({ s, label, val 
   <View style={s.ovStat}>
     <Text style={s.ovStatVal}>{fmtNum(val)}</Text>
     <Text style={s.ovStatLabel}>{label}</Text>
+  </View>
+);
+
+// Компактная экономическая метрика в карточке клиента (значение — строка ₽).
+const EconStat: React.FC<{ label: string; value: string; muted?: boolean }> = ({ label, value, muted }) => (
+  <View style={{ width: '48%', flexGrow: 1 }}>
+    <Text style={{ fontSize: 13, fontWeight: '800', color: muted ? C.ink4 : C.ink, letterSpacing: -0.2 }} numberOfLines={1}>{value}</Text>
+    <Text style={{ fontSize: 10.5, color: C.ink3, marginTop: 1 }} numberOfLines={1}>{label}</Text>
   </View>
 );

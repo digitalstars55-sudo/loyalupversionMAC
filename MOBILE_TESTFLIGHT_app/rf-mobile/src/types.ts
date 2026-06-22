@@ -287,7 +287,17 @@ export interface Profile {
 // ════════════════════════════════════════════════════════════════════
 // CROSS-TENANT OVERVIEW — сводная по всем клиентам (только superadmin)
 // ════════════════════════════════════════════════════════════════════
-export interface CrossOverviewRow {
+// Поля «Экономики клиента» (ТЗ): деньги — float ₽, cost_per_* = null при делении на 0.
+export interface CrossEconomics {
+  gift_cost: number;
+  service_cost: number;
+  total_cost: number;
+  sub_contacts: number;
+  unique_digitized: number;
+  cost_per_contact: number | null;
+  cost_per_unique: number | null;
+}
+export interface CrossOverviewRow extends CrossEconomics {
   name: string;
   schema: string;
   domain: string;
@@ -300,7 +310,7 @@ export interface CrossOverviewRow {
   scan_index: number;
   pos_guests: number;
 }
-export interface CrossOverviewTotals {
+export interface CrossOverviewTotals extends CrossEconomics {
   total_scans: number;
   new_community: number;
   new_newsletter: number;

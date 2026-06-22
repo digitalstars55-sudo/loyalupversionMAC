@@ -9,6 +9,16 @@ import type { RFCell, Sentiment, ReviewSource, Review, RFBranch } from './types'
 
 export const fmtNum = (n: number) => n.toLocaleString('ru-RU').replace(/,/g, ' ');
 
+// Деньги ₽ без копеек (для крупных сумм затрат): «35 000 ₽».
+export const fmtRub = (n: number) =>
+  Math.round(n || 0).toLocaleString('ru-RU').replace(/,/g, ' ') + ' ₽';
+
+// Цена за единицу с копейками: «74,50 ₽». null → «Нет данных».
+export const fmtRubUnit = (n: number | null | undefined) =>
+  n == null
+    ? 'Нет данных'
+    : n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
+
 export const cellEdgeColor = (r: number, f: number): string => {
   if (r === 3 && f === 3) return C.limeDeep;
   if (r === 3 && f === 2) return C.good;
