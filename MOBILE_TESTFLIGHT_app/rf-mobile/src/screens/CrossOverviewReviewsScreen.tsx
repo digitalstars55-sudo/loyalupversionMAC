@@ -12,7 +12,7 @@ import { fetchCrossOverviewReviews } from '../api';
 import { makeStyles } from '../styles';
 import { Skeleton } from '../components/Skeleton';
 import { Chip } from '../components/Common';
-import { CrossReviewReplyModal, type CrossReviewTarget } from '../components/CrossReviewReplyModal';
+import { CrossReviewReplyScreen, type CrossReviewTarget } from './CrossReviewReplyScreen';
 import type { DateRange } from '../components/DateRangeModal';
 import type { CrossOverviewReview } from '../types';
 
@@ -66,6 +66,10 @@ export const CrossOverviewReviewsScreen: React.FC<{
 
   const onRefresh = () => { haptic('light'); setRefreshing(true); load(1, true); };
   const loadMore = () => { if (page < numPages && !loadingMore) { haptic('light'); setLoadingMore(true); load(page + 1, false); } };
+
+  if (target) {
+    return <CrossReviewReplyScreen target={target} onBack={() => setTarget(null)} />;
+  }
 
   return (
     <SafeAreaView style={s.root} edges={['top']}>
@@ -133,8 +137,6 @@ export const CrossOverviewReviewsScreen: React.FC<{
           </>
         )}
       </ScrollView>
-
-      <CrossReviewReplyModal visible={!!target} target={target} onClose={() => setTarget(null)} />
     </SafeAreaView>
   );
 };

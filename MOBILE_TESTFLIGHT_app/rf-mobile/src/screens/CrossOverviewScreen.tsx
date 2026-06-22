@@ -14,7 +14,7 @@ import { Skeleton } from '../components/Skeleton';
 import { Chip } from '../components/Common';
 import { DateRangeModal, type DateRange } from '../components/DateRangeModal';
 import { CrossOverviewReviewsScreen } from './CrossOverviewReviewsScreen';
-import { CrossReviewReplyModal, type CrossReviewTarget } from '../components/CrossReviewReplyModal';
+import { CrossReviewReplyScreen, type CrossReviewTarget } from './CrossReviewReplyScreen';
 import type { CrossOverview, CrossOverviewFeedItem } from '../types';
 import type { S } from '../styles';
 
@@ -75,6 +75,10 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
   const onRefresh = () => { haptic('light'); setRefreshing(true); load(); };
 
   const t = data?.totals;
+
+  if (target) {
+    return <CrossReviewReplyScreen target={target} onBack={() => setTarget(null)} />;
+  }
 
   if (showReviews) {
     return <CrossOverviewReviewsScreen onBack={() => setShowReviews(false)} period={period} customRange={customRange} />;
@@ -195,8 +199,6 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         onApply={(range) => { haptic('light'); setCustomRange(range); setDatePickerOpen(false); }}
         s={s}
       />
-
-      <CrossReviewReplyModal visible={!!target} target={target} onClose={() => setTarget(null)} />
     </SafeAreaView>
   );
 };
