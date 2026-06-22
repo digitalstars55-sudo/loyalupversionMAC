@@ -42,7 +42,7 @@ import {
   type PushPayload,
 } from './src/push';
 import { NotificationsScreen, type NotificationItem, PUSH_TYPE_LABELS } from './src/screens/NotificationsScreen';
-import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, fetchNotifications, markNotificationsRead, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
+import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, fetchNotifications, markNotificationsRead, fetchProfile, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
 import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
 import { registerAssistantNav } from './src/navBridge';
@@ -173,6 +173,16 @@ function AuthGate() {
               } else if (parsedProfile.tenant_domain) {
                 setApiBase(parsedProfile.tenant_domain);
               }
+              // Фоново освежаем профиль: в кэше мог осесть старый профиль без
+              // новых полей (напр. is_superadmin, добавлен позже) — иначе
+              // суперадмин не видит «Сводную по клиентам» до ре-логина.
+              // Не блокируем старт; ошибки/offline → остаётся кэш.
+              fetchProfile().then((fresh) => {
+                if (fresh && (fresh as Profile).id) {
+                  setProfile(fresh as Profile);
+                  storage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(fresh)).catch(() => {});
+                }
+              }).catch(() => {});
             } catch {}
           }
         }
