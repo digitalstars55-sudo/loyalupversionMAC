@@ -14,6 +14,7 @@ import { Skeleton } from '../components/Skeleton';
 import { Chip } from '../components/Common';
 import { DateRangeModal, type DateRange } from '../components/DateRangeModal';
 import { CrossOverviewReviewsScreen } from './CrossOverviewReviewsScreen';
+import { CrossReviewReplyModal, type CrossReviewTarget } from '../components/CrossReviewReplyModal';
 import type { CrossOverview, CrossOverviewFeedItem } from '../types';
 import type { S } from '../styles';
 
@@ -57,6 +58,7 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [showReviews, setShowReviews] = useState(false);
+  const [target, setTarget] = useState<CrossReviewTarget | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -166,7 +168,13 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                   </Pressable>
                 </View>
                 <View style={{ paddingHorizontal: r.pad, gap: 8 }}>
-                  {data!.feed.map((f, i) => <FeedRow key={`${f.conversation_id}_${i}`} f={f} />)}
+                  {data!.feed.map((f, i) => (
+                    <FeedRow key={`${f.conversation_id}_${i}`} f={f} onPress={() => { haptic('light'); setTarget({
+                      conversation_id: f.conversation_id, client: f.client, domain: f.domain,
+                      text: f.text, created_at: f.created_at,
+                      sentiment_label: f.sentiment_label, sentiment_class: f.sentiment_class,
+                    }); }} />
+                  ))}
                 </View>
               </>
             )}
@@ -187,14 +195,16 @@ export const CrossOverviewScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         onApply={(range) => { haptic('light'); setCustomRange(range); setDatePickerOpen(false); }}
         s={s}
       />
+
+      <CrossReviewReplyModal visible={!!target} target={target} onClose={() => setTarget(null)} />
     </SafeAreaView>
   );
 };
 
-const FeedRow: React.FC<{ f: CrossOverviewFeedItem }> = ({ f }) => {
+const FeedRow: React.FC<{ f: CrossOverviewFeedItem; onPress: () => void }> = ({ f, onPress }) => {
   const color = SENT_COLOR[f.sentiment_class] || '#6b7280';
   return (
-    <View style={{ backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.line, padding: 12 }}>
+    <Pressable onPress={onPress} style={{ backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.line, padding: 12 }} {...ripple()}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <Text style={{ fontSize: 12, fontWeight: '700', color: C.ink, flex: 1 }} numberOfLines={1}>{f.client}</Text>
         <View style={{ backgroundColor: color, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 8 }}>
@@ -202,8 +212,11 @@ const FeedRow: React.FC<{ f: CrossOverviewFeedItem }> = ({ f }) => {
         </View>
       </View>
       <Text style={{ fontSize: 13, color: C.ink2, lineHeight: 18 }} numberOfLines={4}>{f.text}</Text>
-      <Text style={{ fontSize: 11, color: C.ink4, marginTop: 5 }}>{relativeTime(f.created_at)}</Text>
-    </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
+        <Text style={{ fontSize: 11, color: C.ink4 }}>{relativeTime(f.created_at)}</Text>
+        <Text style={{ fontSize: 11, color: C.purpleDeep, fontWeight: '700' }}>Ответить →</Text>
+      </View>
+    </Pressable>
   );
 };
 

@@ -84,6 +84,16 @@ export function setApiBase(base: string | null | undefined): void {
   _apiBase = normalized;
 }
 
+// Нормализует произвольный base (домен тенанта) к полному https-URL.
+// Нужно для кросс-тенантных запросов (суперадмин отвечает на отзыв другого
+// клиента) — БЕЗ подмены глобального _apiBase. Пусто → текущий getApiBase().
+export function normBase(base?: string | null): string {
+  if (!base) return getApiBase();
+  let n = String(base).trim();
+  if (!/^https?:\/\//i.test(n)) n = 'https://' + n;
+  return n.replace(/\/+$/, '');
+}
+
 // Для обратной совместимости — старый импорт `API_BASE` продолжает работать,
 // но он *не реактивен*: показывает значение на момент импорта. Все новые
 // fetch'и должны использовать getApiBase().
@@ -904,7 +914,7 @@ export async function sendChatMessage(p: { text: string }): Promise<ChatMessage>
 // ════════════════════════════════════════════════════════════════════
 // REVIEW THREAD — fetch / append message
 // ════════════════════════════════════════════════════════════════════
-export async function fetchReviewMessages(p: { review_id: number }): Promise<TestimonialMessage[]> {
+export async function fetchReviewMessages(p: { review_id: number; base?: string }): Promise<TestimonialMessage[]> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 200));
     const rev = MOCK_REVIEWS.find(r => r.id === p.review_id);
@@ -919,7 +929,7 @@ export async function fetchReviewMessages(p: { review_id: number }): Promise<Tes
       created_at: rev.last_message_at,
     }];
   }
-  const url = new URL(`/api/v1/mobile/reviews/${p.review_id}/messages/`, getApiBase());
+  const url = new URL(`/api/v1/mobile/reviews/${p.review_id}/messages/`, normBase(p.base));
   const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Messages fetch failed: ${res.status}`);
   const data = await res.json();
@@ -935,7 +945,7 @@ export type ReviewReplyResult = TestimonialMessage & {
   vk_error?: string;
 };
 
-export async function appendReviewMessage(p: { review_id: number; text: string }): Promise<ReviewReplyResult> {
+export async function appendReviewMessage(p: { review_id: number; text: string; base?: string }): Promise<ReviewReplyResult> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 500));
     return {
@@ -947,7 +957,7 @@ export async function appendReviewMessage(p: { review_id: number; text: string }
       delivered_to_vk: true,
     };
   }
-  const url = new URL(`/api/v1/mobile/reviews/${p.review_id}/reply/`, getApiBase());
+  const url = new URL(`/api/v1/mobile/reviews/${p.review_id}/reply/`, normBase(p.base));
   const res = await fetch(url.toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },

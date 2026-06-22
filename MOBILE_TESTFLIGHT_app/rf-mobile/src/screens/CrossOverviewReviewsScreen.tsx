@@ -12,6 +12,7 @@ import { fetchCrossOverviewReviews } from '../api';
 import { makeStyles } from '../styles';
 import { Skeleton } from '../components/Skeleton';
 import { Chip } from '../components/Common';
+import { CrossReviewReplyModal, type CrossReviewTarget } from '../components/CrossReviewReplyModal';
 import type { DateRange } from '../components/DateRangeModal';
 import type { CrossOverviewReview } from '../types';
 
@@ -44,6 +45,7 @@ export const CrossOverviewReviewsScreen: React.FC<{
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [target, setTarget] = useState<CrossReviewTarget | null>(null);
 
   const periodArgs = customRange
     ? { start_date: customRange.start_date, end_date: customRange.end_date }
@@ -112,7 +114,9 @@ export const CrossOverviewReviewsScreen: React.FC<{
           <>
             <Text style={{ fontSize: 12, color: C.ink3, paddingHorizontal: r.pad, marginBottom: 8 }}>Всего: {total}</Text>
             <View style={{ paddingHorizontal: r.pad, gap: 8 }}>
-              {items.map((f, i) => <ReviewRow key={`${f.conversation_id}_${i}`} f={f} />)}
+              {items.map((f, i) => (
+                <ReviewRow key={`${f.conversation_id}_${i}`} f={f} onPress={() => { haptic('light'); setTarget(toTarget(f)); }} />
+              ))}
             </View>
 
             {page < numPages && (
@@ -129,14 +133,22 @@ export const CrossOverviewReviewsScreen: React.FC<{
           </>
         )}
       </ScrollView>
+
+      <CrossReviewReplyModal visible={!!target} target={target} onClose={() => setTarget(null)} />
     </SafeAreaView>
   );
 };
 
-const ReviewRow: React.FC<{ f: CrossOverviewReview }> = ({ f }) => {
+const toTarget = (f: CrossOverviewReview): CrossReviewTarget => ({
+  conversation_id: f.conversation_id, client: f.client, domain: f.domain,
+  text: f.text, created_at: f.created_at,
+  sentiment_label: f.sentiment_label, sentiment_class: f.sentiment_class, rating: f.rating,
+});
+
+const ReviewRow: React.FC<{ f: CrossOverviewReview; onPress: () => void }> = ({ f, onPress }) => {
   const color = SENT_COLOR[f.sentiment_class] || '#6b7280';
   return (
-    <View style={{ backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.line, padding: 12 }}>
+    <Pressable onPress={onPress} style={{ backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.line, padding: 12 }} {...ripple()}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <Text style={{ fontSize: 12, fontWeight: '700', color: C.ink, flex: 1 }} numberOfLines={1}>{f.client}</Text>
         {f.rating ? (
@@ -150,7 +162,10 @@ const ReviewRow: React.FC<{ f: CrossOverviewReview }> = ({ f }) => {
         </View>
       </View>
       <Text style={{ fontSize: 13, color: C.ink2, lineHeight: 18 }}>{f.text}</Text>
-      <Text style={{ fontSize: 11, color: C.ink4, marginTop: 5 }}>{relativeTime(f.created_at)}</Text>
-    </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 5 }}>
+        <Text style={{ fontSize: 11, color: C.ink4 }}>{relativeTime(f.created_at)}</Text>
+        <Text style={{ fontSize: 11, color: C.purpleDeep, fontWeight: '700' }}>Ответить →</Text>
+      </View>
+    </Pressable>
   );
 };
