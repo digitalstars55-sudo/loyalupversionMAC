@@ -94,7 +94,7 @@ export const CrossReviewReplyScreen: React.FC<{
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
-        style={{ flex: 1 }}
+        style={{ flex: 1, marginBottom: r.fabBottom + 4 }}
       >
         {/* Метаданные отзыва */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: r.pad, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line }}>
