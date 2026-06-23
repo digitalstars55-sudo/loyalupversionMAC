@@ -44,10 +44,11 @@ App Store Connect: `ascAppId 6767007325` · Team `4SH8A27VC9` · ASC-ключ `7
 • чат с поддержкой
 ```
 
-## URLs
+## URLs / контакты
 - Privacy Policy: `https://levelupapp.ru/privacy` ✅ (живая)
 - Terms of Use: `https://levelupapp.ru/terms` ✅ (живая)
-- Support URL: `https://levelupapp.ru` (или страница поддержки — подтвердить)
+- Контакт (в privacy/terms): `levon.kirakosov@mail.ru` ✅
+- Support URL: `https://levelupapp.ru`
 - Marketing URL: `https://levelupapp.ru`
 
 ## App Privacy (анкета в ASC — что собираем)
@@ -73,7 +74,7 @@ Backend: `POST /api/v1/me/delete/`. Удаляет учётку + push-токе�
 
 ## Скриншоты (требования Apple)
 - Обязательно: **6.9"** (iPhone 17 Pro Max, 1320×2868) — минимум 1, лучше 4-6.
-- Снимаем из симулятора: Главная → Аналитика → Отзывы (ответ) → Рассылки → Сводная → Чат.
+- ⏳ Владелец пришлёт со своего телефона; подогнать под 1320×2868 при необходимости.
 
 ## Sign in with Apple — НЕ требуется
 Вход владельца — логин/пароль (`/auth/login/`), стороннего соц-логина нет → Guideline 4.8 неприменим.
