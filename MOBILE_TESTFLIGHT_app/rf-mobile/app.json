@@ -22,7 +22,7 @@
     "ios": {
       "bundleIdentifier": "ru.levelup.mudup",
       "buildNumber": "1",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "Прикрепляйте фото к рассылкам и сообщениям менеджеру.",
         "NSPhotoLibraryUsageDescription": "Выбирайте изображения из галереи для рассылок и чата.",
