@@ -1285,6 +1285,29 @@ export async function updateProfile(p: Partial<Profile>): Promise<Profile> {
   return await res.json();
 }
 
+// Юридические страницы (на public-домене) — для ссылок в приложении и App Store.
+export const PRIVACY_URL = `${_DEFAULT_API_BASE}/privacy`;
+export const TERMS_URL = `${_DEFAULT_API_BASE}/terms`;
+
+// Полное удаление своего аккаунта (App Store Guideline 5.1.1(v)).
+// Требует подтверждения паролем. После успеха приложение разлогинивается.
+export async function deleteAccount(password: string): Promise<void> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 350));
+    return;
+  }
+  const res = await fetch(new URL('/api/v1/me/delete/', getApiBase()).toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) {
+    let detail = `Не удалось удалить аккаунт (${res.status})`;
+    try { const j = await res.json(); if (j?.detail) detail = j.detail; } catch {}
+    throw new Error(detail);
+  }
+}
+
 export async function fetchStaff(): Promise<{ staff: Staff[]; manageableRoles: ('manager' | 'viewer')[] }> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 250));

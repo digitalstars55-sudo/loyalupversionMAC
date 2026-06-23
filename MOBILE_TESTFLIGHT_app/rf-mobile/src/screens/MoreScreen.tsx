@@ -104,7 +104,7 @@ export const MoreScreen: React.FC<{
     <BranchesScreen onBack={() => setSub(null)} reviews={reviews} onContactManager={() => { setSub(null); onOpenChat(); }} />
   );
   else if (sub === 'rf-thresholds') subEl = <RFThresholdsScreen  onBack={() => setSub(null)} />;
-  else if (sub === 'profile')       subEl = <ProfileScreen       onBack={() => setSub(null)} />;
+  else if (sub === 'profile')       subEl = <ProfileScreen       onBack={() => setSub(null)} onDeleted={onLogout} />;
   else if (sub === 'staff')         subEl = (
     <StaffScreen onBack={() => setSub(null)} onOpenAuditLog={() => setSub('audit-log')} />
   );
