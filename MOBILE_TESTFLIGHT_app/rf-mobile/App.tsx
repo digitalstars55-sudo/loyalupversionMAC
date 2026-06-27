@@ -294,6 +294,7 @@ function AuthGate() {
           onSwitchTenant={multiTenant ? handleSwitchTenant : undefined}
           currentTenantName={activeTenant?.name || profile?.tenant_name || undefined}
           isSuperadmin={!!profile?.is_superadmin}
+          featureAccess={profile?.feature_access}
         />
         {/* AI Лояльчик — плавает над всеми экранами после входа */}
         <LoyalchikAssistant />
@@ -345,11 +346,12 @@ function AuthGate() {
   }
 }
 
-function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
+function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin, featureAccess }: {
   onLogout: () => void;
   onSwitchTenant?: () => void;
   currentTenantName?: string;
   isSuperadmin?: boolean;
+  featureAccess?: string[];
 }) {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
@@ -562,7 +564,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
             setTab('reviews');
           }}
         />
-        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
+        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} featureAccess={featureAccess} isSuperadmin={isSuperadmin} s={s} />
       </ReAnimated.View>
     );
   }
@@ -570,7 +572,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
     return (
       <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <ReportsScreen onBack={() => setOverlay(null)} />
-        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
+        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} featureAccess={featureAccess} isSuperadmin={isSuperadmin} s={s} />
       </ReAnimated.View>
     );
   }
@@ -578,7 +580,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
     return (
       <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <RFThresholdsScreen onBack={() => setOverlay(null)} />
-        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
+        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} featureAccess={featureAccess} isSuperadmin={isSuperadmin} s={s} />
       </ReAnimated.View>
     );
   }
@@ -593,7 +595,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
           onOpenQuests={() => { setOverlay(null); setTab('more'); }}
           onOpenPromotions={() => { setOverlay(null); setTab('more'); }}
         />
-        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
+        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} featureAccess={featureAccess} isSuperadmin={isSuperadmin} s={s} />
       </ReAnimated.View>
     );
   }
@@ -604,7 +606,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
           onBack={() => setOverlay(null)}
           onOpenGuest={(vkId) => { setOverlay(null); setPendingGuestVkId(vkId); setTab('more'); }}
         />
-        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
+        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} featureAccess={featureAccess} isSuperadmin={isSuperadmin} s={s} />
       </ReAnimated.View>
     );
   }
@@ -612,7 +614,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
     return (
       <ReAnimated.View entering={SlideInRight.duration(220)} style={{ flex: 1 }}>
         <EngagementAnalyticsScreen onBack={() => setOverlay(null)} />
-        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
+        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} featureAccess={featureAccess} isSuperadmin={isSuperadmin} s={s} />
       </ReAnimated.View>
     );
   }
@@ -636,7 +638,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
             }
           }}
         />
-        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} s={s} />
+        <TabBar active={tab} onChange={(t) => { setOverlay(null); setTab(t); }} reviewsBadge={reviewsBadge} chatBadge={chatBadge} featureAccess={featureAccess} isSuperadmin={isSuperadmin} s={s} />
       </ReAnimated.View>
     );
   }
@@ -698,6 +700,7 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
           openSubScreen={pendingOpenMoreScreen}
           onSubScreenConsumed={() => setPendingOpenMoreScreen(null)}
           isSuperadmin={isSuperadmin}
+          featureAccess={featureAccess}
         />
       )}
       </ReAnimated.View>
@@ -707,6 +710,8 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin }: {
         onChange={setTab}
         reviewsBadge={reviewsBadge}
         chatBadge={chatBadge}
+        featureAccess={featureAccess}
+        isSuperadmin={isSuperadmin}
         s={s}
       />
     </View>

@@ -282,6 +282,8 @@ export interface Profile {
   tenant_name?: string | null;     // напр. "Кофейня Уют"
   companies?: TenantCompany[];     // все сети юзера — если >1, показываем выбор сети
   is_superadmin?: boolean;         // платформенный суперадмин — видит сводную по ВСЕМ клиентам
+  feature_access?: string[];       // разделы с доступом (паритет с веб User.feature_access).
+                                   // Пусто/undefined = без ограничений (показываем всё). См. src/access.ts
 }
 
 // ════════════════════════════════════════════════════════════════════

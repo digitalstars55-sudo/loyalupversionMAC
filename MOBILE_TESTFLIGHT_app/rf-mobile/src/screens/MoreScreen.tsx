@@ -13,6 +13,7 @@ import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { makeStyles } from '../styles';
+import { canFeature, type FeatureKey } from '../access';
 import { startTour } from '../tourTargets';
 import { AutoReplySettings } from './AutoReplySettings';
 import { ManagerContact } from './ManagerContact';
@@ -77,9 +78,15 @@ export const MoreScreen: React.FC<{
   openSubScreen?: string | null;
   onSubScreenConsumed?: () => void;
   isSuperadmin?: boolean;
-}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout, onSwitchTenant, currentTenantName, openGuestVkId, onGuestVkIdConsumed, openSubScreen, onSubScreenConsumed, isSuperadmin }) => {
+  featureAccess?: string[];   // разграничение по разделам (паритет с вебом)
+}> = ({ autoReplySettings, onAutoReplyChange, onOpenChat, reviews, onLogout, onSwitchTenant, currentTenantName, openGuestVkId, onGuestVkIdConsumed, openSubScreen, onSubScreenConsumed, isSuperadmin, featureAccess }) => {
   const r = useResponsive();
   const s = useMemo(() => makeStyles(r), [r]);
+  // Доступ к разделу: пусто = всё видно (как owner'у), иначе только перечисленное. SU = всё.
+  const can = (key: FeatureKey) => canFeature(featureAccess, key, isSuperadmin);
+  const showTools = can('auto_reply') || can('broadcasts') || can('guests')
+    || can('general_stats') || can('contact_points') || can('reports') || !!isSuperadmin;
+  const showContent = can('catalog') || can('quests') || can('promotions') || can('daily_codes');
   const [sub, setSub] = useState<SubScreen>(
     openGuestVkId ? 'guests' : (openSubScreen as SubScreen | null) ?? null
   );
@@ -160,9 +167,11 @@ export const MoreScreen: React.FC<{
       <ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
 
         {/* ИНСТРУМЕНТЫ */}
+        {showTools && (
         <View style={s.menuSection}>
           <Text style={s.menuSectionTitle}>Инструменты</Text>
           <View style={s.menuCard}>
+            {can('auto_reply') && (
             <MenuRow
               s={s}
               icon={<Sparkles size={18} color={C.purpleDeep} strokeWidth={2} />}
@@ -173,6 +182,8 @@ export const MoreScreen: React.FC<{
               valueOn={autoReplySettings.enabled}
               onPress={open('auto-reply')}
             />
+            )}
+            {can('broadcasts') && (
             <MenuRow
               s={s}
               icon={<Megaphone size={18} color={C.purpleDeep} strokeWidth={2} />}
@@ -181,6 +192,8 @@ export const MoreScreen: React.FC<{
               sub="История рассылок и охват"
               onPress={open('campaigns')}
             />
+            )}
+            {can('guests') && (
             <MenuRow
               s={s}
               icon={<Users size={18} color={C.purpleDeep} strokeWidth={2} />}
@@ -189,6 +202,8 @@ export const MoreScreen: React.FC<{
               sub="База клиентов с поиском"
               onPress={open('guests')}
             />
+            )}
+            {can('general_stats') && (
             <MenuRow
               s={s}
               icon={<BarChart3 size={18} color={C.purpleDeep} strokeWidth={2} />}
@@ -197,6 +212,8 @@ export const MoreScreen: React.FC<{
               sub="QR, рассылки, ДР, индекс сканирования"
               onPress={open('general-stats')}
             />
+            )}
+            {can('contact_points') && (
             <MenuRow
               s={s}
               icon={<QrCode size={18} color={C.purpleDeep} strokeWidth={2} />}
@@ -205,6 +222,8 @@ export const MoreScreen: React.FC<{
               sub="Конверсия по каждому QR-коду"
               onPress={open('contact-points')}
             />
+            )}
+            {can('reports') && (
             <MenuRow
               s={s}
               last={!isSuperadmin}
@@ -214,6 +233,7 @@ export const MoreScreen: React.FC<{
               sub="Расширенный отчёт с PDF-выгрузкой"
               onPress={open('reports')}
             />
+            )}
             {isSuperadmin && (
               <MenuRow
                 s={s}
@@ -227,11 +247,14 @@ export const MoreScreen: React.FC<{
             )}
           </View>
         </View>
+        )}
 
         {/* КОНТЕНТ */}
+        {showContent && (
         <View style={s.menuSection}>
           <Text style={s.menuSectionTitle}>Контент</Text>
           <View style={s.menuCard}>
+            {can('catalog') && (
             <MenuRow
               s={s}
               icon={<Gift size={18} color={C.limeDeep} strokeWidth={2} />}
@@ -240,6 +263,8 @@ export const MoreScreen: React.FC<{
               sub="Каталог подарков за баллы"
               onPress={open('catalog')}
             />
+            )}
+            {can('catalog') && (
             <MenuRow
               s={s}
               icon={<FolderTree size={18} color={C.limeDeep} strokeWidth={2} />}
@@ -248,6 +273,8 @@ export const MoreScreen: React.FC<{
               sub="Структура каталога по точкам"
               onPress={open('categories')}
             />
+            )}
+            {can('quests') && (
             <MenuRow
               s={s}
               icon={<Target size={18} color={C.limeDeep} strokeWidth={2} />}
@@ -256,6 +283,8 @@ export const MoreScreen: React.FC<{
               sub="Задания для гостей за баллы"
               onPress={open('quests')}
             />
+            )}
+            {can('promotions') && (
             <MenuRow
               s={s}
               icon={<Megaphone size={18} color={C.limeDeep} strokeWidth={2} />}
@@ -264,6 +293,8 @@ export const MoreScreen: React.FC<{
               sub="Баннеры на главной приложения"
               onPress={open('promotions')}
             />
+            )}
+            {can('daily_codes') && (
             <MenuRow
               s={s}
               last
@@ -273,8 +304,10 @@ export const MoreScreen: React.FC<{
               sub="Авто-генерация ежедневно"
               onPress={open('daily-codes')}
             />
+            )}
           </View>
         </View>
+        )}
 
         {/* НАСТРОЙКИ */}
         <View style={s.menuSection}>
@@ -312,6 +345,7 @@ export const MoreScreen: React.FC<{
               sub="С каких сетей и о чём слать пуши"
               onPress={open('push-prefs')}
             />
+            {can('staff') && (
             <MenuRow
               s={s}
               last
@@ -321,6 +355,7 @@ export const MoreScreen: React.FC<{
               sub="Управление доступом и правами"
               onPress={open('staff')}
             />
+            )}
           </View>
         </View>
 
