@@ -17,6 +17,7 @@ import { PERIODS } from '../mocks';
 import { makeStyles } from '../styles';
 import { Skeleton } from '../components/Skeleton';
 import { Chip } from '../components/Common';
+import { DateRangeModal, type DateRange } from '../components/DateRangeModal';
 import type { GeneralStats, RFBranch } from '../types';
 import type { S } from '../styles';
 
@@ -33,14 +34,26 @@ export const GeneralStatsScreen: React.FC<{
   const [stats, setStats] = useState<GeneralStats | null>(null);
   const [branches, setBranches] = useState<RFBranch[]>([]);
   const [periodDays, setPeriodDays] = useState(30);
+  const [customRange, setCustomRange] = useState<DateRange | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [branchId, setBranchId] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Локальная сегодняшняя дата YYYY-MM-DD (в часовом поясе устройства).
+  const todayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const isToday = customRange?.display === 'Сегодня';
+
   const load = async () => {
     try {
+      const periodArg = customRange
+        ? { start_date: customRange.start_date, end_date: customRange.end_date }
+        : { period_days: periodDays };
       const [st, br] = await Promise.all([
-        fetchGeneralStats({ period_days: periodDays, branch_ids: branchId === 0 ? [] : [branchId] }),
+        fetchGeneralStats({ ...periodArg, branch_ids: branchId === 0 ? [] : [branchId] }),
         branches.length > 0 ? Promise.resolve(branches) : fetchBranches(),
       ]);
       setStats(st);
@@ -50,7 +63,7 @@ export const GeneralStatsScreen: React.FC<{
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [periodDays, branchId]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [periodDays, branchId, customRange]);
 
   const onRefresh = () => { haptic('light'); setRefreshing(true); load(); };
 
@@ -87,14 +100,24 @@ export const GeneralStatsScreen: React.FC<{
         <View style={s.filterBlock}>
           <Text style={s.filterLabel}>Период</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow}>
+            <Chip
+              active={isToday}
+              onPress={() => { haptic('light'); setCustomRange({ start_date: todayStr(), end_date: todayStr(), display: 'Сегодня' }); }}
+              s={s}
+            >Сегодня</Chip>
             {PERIODS.map(p => (
               <Chip
                 key={p.days}
-                active={periodDays === p.days}
-                onPress={() => { haptic('light'); setPeriodDays(p.days); }}
+                active={!customRange && periodDays === p.days}
+                onPress={() => { haptic('light'); setCustomRange(null); setPeriodDays(p.days); }}
                 s={s}
               >{p.label}</Chip>
             ))}
+            <Chip
+              active={!!customRange && !isToday}
+              onPress={() => { haptic('light'); setDatePickerOpen(true); }}
+              s={s}
+            >{customRange && !isToday ? customRange.display : '📅 Свой период'}</Chip>
           </ScrollView>
         </View>
 
@@ -175,6 +198,14 @@ export const GeneralStatsScreen: React.FC<{
           </Text>
         </View>
       </ScrollView>
+
+      <DateRangeModal
+        visible={datePickerOpen}
+        initial={customRange && !isToday ? { start_date: customRange.start_date, end_date: customRange.end_date } : undefined}
+        onClose={() => setDatePickerOpen(false)}
+        onApply={(range) => { haptic('light'); setCustomRange(range); setDatePickerOpen(false); }}
+        s={s}
+      />
     </SafeAreaView>
   );
 };
