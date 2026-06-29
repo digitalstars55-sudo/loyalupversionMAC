@@ -55,6 +55,13 @@ export function AnalyticsScreen({
   const [customRange, setCustomRange] = useState<DateRange | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [branchId, setBranchId] = useState(0);
+
+  // Локальная сегодняшняя дата YYYY-MM-DD (часовой пояс устройства) для чипа «Сегодня».
+  const todayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const isToday = customRange?.display === 'Сегодня';
   const [data, setData] = useState<RFMatrixResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -270,6 +277,13 @@ export function AnalyticsScreen({
         <View style={s.filterBlock}>
           <Text style={s.filterLabel}>Период</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipsRow}>
+            <Chip
+              active={isToday}
+              onPress={() => { haptic('light'); setCustomRange({ start_date: todayStr(), end_date: todayStr(), display: 'Сегодня' }); }}
+              s={s}
+            >
+              Сегодня
+            </Chip>
             {PERIODS.map(p => (
               <Chip
                 key={p.days}
@@ -281,11 +295,11 @@ export function AnalyticsScreen({
               </Chip>
             ))}
             <Chip
-              active={!!customRange}
+              active={!!customRange && !isToday}
               onPress={() => { haptic('light'); setDatePickerOpen(true); }}
               s={s}
             >
-              {customRange ? customRange.display : '📅 Произвольно'}
+              {customRange && !isToday ? customRange.display : '📅 Произвольно'}
             </Chip>
           </ScrollView>
 
@@ -617,7 +631,7 @@ export function AnalyticsScreen({
 
       <DateRangeModal
         visible={datePickerOpen}
-        initial={customRange ? { start_date: customRange.start_date, end_date: customRange.end_date } : undefined}
+        initial={customRange && !isToday ? { start_date: customRange.start_date, end_date: customRange.end_date } : undefined}
         onClose={() => setDatePickerOpen(false)}
         onApply={(range) => {
           setCustomRange(range);
