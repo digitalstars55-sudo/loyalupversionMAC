@@ -1,7 +1,7 @@
 import type {
   Mode, RFMatrixResponse, Guest, Review, AutoReplySettings,
   ChatMessage, ChatManager, Campaign, RFMigration, RFThresholds, RFBranch,
-  Profile, Staff, SubscriptionStatus,
+  Profile, Staff, FeatureChoice, SubscriptionStatus,
   TestimonialMessage, GuestDetail, GeneralStats, LoyaltyReport, CrossOverview,
   Product, ProductCategory, Quest, Promotion, DailyCode, CoinAdjustment,
   GuestCoinTxn, LoginCredentials, LoginResponse, AuditLogEntry, AuditActionType,
@@ -1308,10 +1308,10 @@ export async function deleteAccount(password: string): Promise<void> {
   }
 }
 
-export async function fetchStaff(): Promise<{ staff: Staff[]; manageableRoles: ('manager' | 'viewer')[] }> {
+export async function fetchStaff(): Promise<{ staff: Staff[]; manageableRoles: ('manager' | 'viewer')[]; featureChoices: FeatureChoice[] }> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 250));
-    return { staff: MOCK_STAFF, manageableRoles: ['manager', 'viewer'] };
+    return { staff: MOCK_STAFF, manageableRoles: ['manager', 'viewer'], featureChoices: [] };
   }
   const res = await fetch(new URL('/api/v1/staff/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
@@ -1319,7 +1319,8 @@ export async function fetchStaff(): Promise<{ staff: Staff[]; manageableRoles: (
   if (!res.ok) throw new Error(`Staff fetch failed: ${res.status}`);
   const data = await res.json();
   // manageable_roles — какие роли актор вправе назначать (RBAC, источник правды — бэк)
-  return { staff: data.staff ?? [], manageableRoles: data.manageable_roles ?? [] };
+  // feature_choices — список редактируемых разделов (ключ+подпись), паритет с вебом
+  return { staff: data.staff ?? [], manageableRoles: data.manageable_roles ?? [], featureChoices: data.feature_choices ?? [] };
 }
 
 export async function updateStaff(p: Partial<Staff> & { id: number }): Promise<void> {
@@ -1336,7 +1337,7 @@ export type InvitedStaff = Staff & { login?: string; temp_password?: string; inv
 
 export async function inviteStaff(p: {
   full_name: string; email?: string; phone?: string;
-  role: 'manager' | 'viewer'; branch_ids: number[];
+  role: 'manager' | 'viewer'; branch_ids: number[]; feature_access?: string[];
 }): Promise<InvitedStaff> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 400));
@@ -1374,6 +1375,7 @@ export async function linkExistingStaff(p: {
   username: string;
   role?: 'manager' | 'viewer';
   branch_ids?: number[];
+  feature_access?: string[];
 }): Promise<Staff & { linked_from_existing: true }> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 400));

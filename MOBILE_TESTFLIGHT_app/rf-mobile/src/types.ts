@@ -388,10 +388,13 @@ export interface Staff {
   phone?: string;
   active: boolean;
   permissions: StaffPermissions;
+  feature_access?: string[]; // разделы, к которым есть доступ (ключи FEATURE_CHOICES). Единый источник, паритет с вебом.
   branch_ids: number[];      // на какие точки имеет доступ ('all' = пустой массив трактуется как все)
   invited_at: string;        // ISO
   last_active_at?: string;
 }
+
+export interface FeatureChoice { key: string; label: string; }
 
 // ════════════════════════════════════════════════════════════════════
 // GUEST DETAIL — расширенная карточка гостя (визиты, монеты, VK-статус)

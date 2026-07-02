@@ -39,6 +39,7 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
   const [inviteOpen, setInviteOpen] = useState(false);
   // RBAC: какие роли текущий юзер вправе назначать (с бэка). Пусто = не может управлять.
   const [manageableRoles, setManageableRoles] = useState<('manager' | 'viewer')[]>([]);
+  const [featureChoices, setFeatureChoices] = useState<{ key: string; label: string }[]>([]);
 
   const canManageStaffMember = (st: Staff) => manageableRoles.includes(st.role as 'manager' | 'viewer');
 
@@ -46,6 +47,7 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
     try {
       const [staffRes, br] = await Promise.all([fetchStaff(), fetchBranches()]);
       setList(staffRes.staff); setBranches(br); setManageableRoles(staffRes.manageableRoles);
+      setFeatureChoices(staffRes.featureChoices || []);
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
@@ -71,6 +73,7 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
         role: next.role,
         permissions: next.permissions,
         branch_ids: next.branch_ids,
+        feature_access: next.feature_access,
       });
       haptic('success');
     } catch (e: any) {
@@ -245,6 +248,7 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
       <PermsModal
         staff={editing}
         branches={branches}
+        featureChoices={featureChoices}
         s={s}
         manageableRoles={manageableRoles}
         onClose={() => setEditing(null)}
@@ -337,22 +341,31 @@ const RolePill: React.FC<{ role: StaffRole; label: string; s: S }> = ({ role, la
 const PermsModal: React.FC<{
   staff: Staff | null;
   branches: RFBranch[];
+  featureChoices: { key: string; label: string }[];
   s: S;
   manageableRoles: ('manager' | 'viewer')[];
   onClose: () => void;
   onSave: (next: Staff) => void;
   onDelete: (st: Staff) => void;
-}> = ({ staff, branches, s, manageableRoles, onClose, onSave, onDelete }) => {
+}> = ({ staff, branches, featureChoices, s, manageableRoles, onClose, onSave, onDelete }) => {
   const [role, setRole] = useState<StaffRole>('manager');
   const [perms, setPerms] = useState<StaffPermissions>(DEFAULT_PERMS_BY_ROLE.manager);
   const [branchIds, setBranchIds] = useState<number[]>([]);
+  const [featureIds, setFeatureIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!staff) return;
     setRole(staff.role);
     setPerms(staff.permissions);
     setBranchIds(staff.branch_ids);
+    // разделы: бэк отдаёт уже разрешённые (все редактируемые, если без ограничений)
+    setFeatureIds(staff.feature_access ?? featureChoices.map(f => f.key));
   }, [staff?.id]);
+
+  const toggleFeature = (key: string) => () => {
+    haptic('light');
+    setFeatureIds(prev => prev.includes(key) ? prev.filter(x => x !== key) : [...prev, key]);
+  };
 
   if (!staff) return null;
 
@@ -413,23 +426,24 @@ const PermsModal: React.FC<{
             )}
 
             {/* Permissions */}
-            {!isOwner && (
+            {!isOwner && featureChoices.length > 0 && (
               <>
                 <Text style={[s.menuSectionTitle, { paddingHorizontal: 0, marginTop: 12 }]}>Доступ к разделам</Text>
                 <View style={[s.menuCard, { marginHorizontal: 0 }]}>
-                  <PermRow s={s} title="Главная и аналитика"   sub="RF, KPI, миграции"        on={perms.see_analytics}   onChange={togglePerm('see_analytics')} />
-                  <PermRow s={s} title="Отзывы"                 sub="Видит ленту отзывов"     on={perms.see_reviews}     onChange={togglePerm('see_reviews')} />
-                  <PermRow s={s} title="Отвечать на отзывы"     sub="Отправлять и закрывать"  on={perms.reply_reviews}   onChange={togglePerm('reply_reviews')} />
-                  <PermRow s={s} title="Рассылки"               sub="История и охват"          on={perms.see_broadcasts}  onChange={togglePerm('see_broadcasts')} />
-                  <PermRow s={s} title="Запускать рассылки"     sub="Создавать новые"          on={perms.send_broadcasts} onChange={togglePerm('send_broadcasts')} />
-                  <PermRow s={s} title="Гости"                  sub="База клиентов"            on={perms.see_guests}      onChange={togglePerm('see_guests')} />
-                  <PermRow s={s} title="Точки"                  sub="Список филиалов"          on={perms.see_branches}    onChange={togglePerm('see_branches')} />
-                  <PermRow s={s} title="Настройка порогов RF"   sub="Изменять R/F границы"     on={perms.edit_thresholds} onChange={togglePerm('edit_thresholds')} />
-                  <PermRow s={s} title="Подарки и категории"    sub="Создавать/редактировать каталог" on={perms.manage_catalog}    onChange={togglePerm('manage_catalog')} />
-                  <PermRow s={s} title="Квесты"                  sub="Создавать задания для гостей" on={perms.manage_quests}     onChange={togglePerm('manage_quests')} />
-                  <PermRow s={s} title="Акции"                   sub="Баннеры на главной"           on={perms.manage_promotions} onChange={togglePerm('manage_promotions')} />
-                  <PermRow s={s} title="Изменять баланс гостей" sub="Ручное начисление/списание баллов" on={perms.adjust_coins}      onChange={togglePerm('adjust_coins')} last />
+                  {featureChoices.map((f, i, arr) => (
+                    <PermRow
+                      key={f.key} s={s}
+                      title={f.label}
+                      on={featureIds.includes(f.key)}
+                      onChange={toggleFeature(f.key)}
+                      last={i === arr.length - 1}
+                    />
+                  ))}
                 </View>
+                <Text style={[s.modalHintText, { paddingHorizontal: 8, marginTop: 8 }]}>
+                  Отмечены разделы, которые сотрудник видит в приложении и в веб-версии.
+                  Настройки едины: изменил здесь — обновилось в вебе, и наоборот.
+                </Text>
               </>
             )}
 
@@ -498,7 +512,7 @@ const PermsModal: React.FC<{
                       'Отметьте хотя бы одну точку — иначе сотрудник не увидит данные ни по одной точке.');
                     return;
                   }
-                  onSave({ ...staff, role, permissions: perms, branch_ids: branchIds });
+                  onSave({ ...staff, role, permissions: perms, branch_ids: branchIds, feature_access: featureIds });
                 }}
               >
                 <Save size={14} color={C.surface} strokeWidth={2.2} />
