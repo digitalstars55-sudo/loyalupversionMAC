@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, Pressable, FlatList, RefreshControl, Switch, Modal, ScrollView,
-  TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Share,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -84,19 +84,32 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
     role: 'manager' | 'viewer'; branch_ids: number[];
   }) => {
     try {
-      const created = await inviteStaff(data);
+      // По умолчанию новый сотрудник видит ВСЕ точки (потом доступ можно сузить в
+      // карточке сотрудника). Пустой список бэкенд трактует как «нет доступа», поэтому
+      // здесь явно проставляем все точки сети.
+      const allBranchIds = branches.filter(b => b.id !== 0).map(b => b.id);
+      const payload = {
+        ...data,
+        branch_ids: (data.branch_ids && data.branch_ids.length) ? data.branch_ids : allBranchIds,
+      };
+      const created = await inviteStaff(payload);
       setList(prev => [...prev, created]);
       haptic('success');
       setInviteOpen(false);
       const login = created.login;
       const pwd = created.temp_password;
       if (login && pwd) {
+        const creds =
+          `Доступ в приложение ЛоялUP\n\nЛогин: ${login}\nПароль: ${pwd}\n\n` +
+          `Войдите в приложение и смените пароль в настройках профиля.`;
         Alert.alert(
           'Сотрудник создан ✅',
-          `Передайте эти данные сотруднику — он войдёт в приложение и сможет сменить пароль. Показываем только сейчас:\n\n` +
-          `Логин:  ${login}\nПароль:  ${pwd}\n\n` +
-          `Письма/SMS не отправляются автоматически — передайте доступ лично.`,
-          [{ text: 'Записал(а)', style: 'default' }],
+          `Передайте эти данные сотруднику (показываем только сейчас):\n\n` +
+          `Логин:  ${login}\nПароль:  ${pwd}`,
+          [
+            { text: 'Поделиться', onPress: () => { Share.share({ message: creds }).catch(() => {}); } },
+            { text: 'Записал(а)', style: 'cancel' },
+          ],
         );
       } else {
         Alert.alert('Готово', `Сотрудник ${data.full_name} создан.`);
@@ -113,7 +126,12 @@ export const StaffScreen: React.FC<{ onBack: () => void; onOpenAuditLog?: () => 
     username: string; role: 'manager' | 'viewer'; branch_ids: number[];
   }) => {
     try {
-      const linked = await linkExistingStaff(data);
+      const allBranchIds = branches.filter(b => b.id !== 0).map(b => b.id);
+      const payload = {
+        ...data,
+        branch_ids: (data.branch_ids && data.branch_ids.length) ? data.branch_ids : allBranchIds,
+      };
+      const linked = await linkExistingStaff(payload);
       setList(prev => [...prev, linked]);
       haptic('success');
       setInviteOpen(false);
@@ -430,15 +448,16 @@ const PermsModal: React.FC<{
                       key={b.id} s={s}
                       title={b.name}
                       sub={b.address}
-                      on={branchIds.length === 0 || branchIds.includes(b.id)}
+                      on={branchIds.includes(b.id)}
                       onChange={toggleBranch(b.id)}
                       last={i === arr.length - 1}
                     />
                   ))}
                 </View>
                 <Text style={[s.modalHintText, { paddingHorizontal: 8, marginTop: 8 }]}>
-                  Все галки = сотрудник видит все точки. Сними галку у точки,
-                  к которой не должен иметь доступа (отзывы/аналитика/пуши).
+                  Отмечены точки, к которым у сотрудника есть доступ
+                  (отзывы/аналитика/пуши). Сними галку — точка станет недоступна.
+                  Должна быть отмечена хотя бы одна точка.
                 </Text>
               </>
             )}
@@ -473,7 +492,14 @@ const PermsModal: React.FC<{
               <Pressable
                 style={[s.btn, s.btnPrimary]}
                 {...ripple('rgba(255,255,255,0.22)')}
-                onPress={() => onSave({ ...staff, role, permissions: perms, branch_ids: branchIds })}
+                onPress={() => {
+                  if (branches.filter(b => b.id !== 0).length > 0 && branchIds.length === 0) {
+                    Alert.alert('Нет доступа к точкам',
+                      'Отметьте хотя бы одну точку — иначе сотрудник не увидит данные ни по одной точке.');
+                    return;
+                  }
+                  onSave({ ...staff, role, permissions: perms, branch_ids: branchIds });
+                }}
               >
                 <Save size={14} color={C.surface} strokeWidth={2.2} />
                 <Text style={s.btnPrimaryText}>Сохранить</Text>
