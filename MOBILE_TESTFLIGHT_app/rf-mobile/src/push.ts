@@ -199,8 +199,14 @@ export const simulateLocalPush = async (payload: PushPayload): Promise<void> => 
 
 // Регистрация токена на бэке.
 // На бэке хранится связка (token, platform, staff_id) → сервер шлёт пуши через Expo Push API.
+// Последний зарегистрированный push-токен — чтобы снять его при logout,
+// даже если вызвавший не передал token явно.
+let _lastPushToken: string | null = null;
+export const getLastPushToken = (): string | null => _lastPushToken;
+
 export const sendPushTokenToBackend = async (token: string): Promise<void> => {
   if (!token) return;
+  _lastPushToken = token;
   if (USE_MOCK) {
     // В моке просто логируем — реальной отправки нет
     return;
@@ -223,18 +229,22 @@ export const sendPushTokenToBackend = async (token: string): Promise<void> => {
   }
 };
 
-// Снятие регистрации токена (вызвать при logout).
-export const unregisterPushToken = async (token: string): Promise<void> => {
-  if (!token || USE_MOCK) return;
+// Снятие регистрации токена (вызвать при logout, ПОКА токен авторизации ещё валиден).
+// Бэк удаляет связку по (user, token) через DELETE /api/v1/push/register/.
+// token необязателен — по умолчанию берём последний зарегистрированный.
+export const unregisterPushToken = async (token?: string): Promise<void> => {
+  const tok = token || _lastPushToken;
+  if (!tok || USE_MOCK) return;
   try {
     const auth = getAuthToken();
-    await fetch(new URL('/api/v1/push/unregister/', API_BASE).toString(), {
-      method: 'POST',
+    await fetch(new URL('/api/v1/push/register/', API_BASE).toString(), {
+      method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
         ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
       },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token: tok }),
     });
+    _lastPushToken = null;
   } catch {}
 };

@@ -38,7 +38,7 @@ import { MOCK_REVIEWS, DEFAULT_AUTO_REPLY_SETTINGS, MOCK_MESSAGES } from './src/
 import type { Review, TabKey, AutoReplySettings, ChatMessage, Profile, TenantCompany } from './src/types';
 import {
   setupPushHandlers, registerForPushNotifications, addPushResponseListener,
-  addPushReceivedListener, sendPushTokenToBackend,
+  addPushReceivedListener, sendPushTokenToBackend, unregisterPushToken,
   type PushPayload,
 } from './src/push';
 import { NotificationsScreen, type NotificationItem, PUSH_TYPE_LABELS } from './src/screens/NotificationsScreen';
@@ -172,15 +172,27 @@ function AuthGate() {
                 setApiBase(savedTenant.domain);
               } else if (parsedProfile.tenant_domain) {
                 setApiBase(parsedProfile.tenant_domain);
+              } else if (parsedProfile.companies?.[0]?.domain) {
+                // Stale-профиль без tenant_domain — берём домен первой сети,
+                // иначе тенантные запросы уйдут на public-хост → 404 →
+                // пустые экраны («ничего не видно» до ручного ре-логина).
+                setApiBase(parsedProfile.companies[0].domain);
               }
               // Фоново освежаем профиль: в кэше мог осесть старый профиль без
-              // новых полей (напр. is_superadmin, добавлен позже) — иначе
-              // суперадмин не видит «Сводную по клиентам» до ре-логина.
-              // Не блокируем старт; ошибки/offline → остаётся кэш.
+              // новых полей (напр. is_superadmin / tenant_domain, добавлены
+              // позже). Не блокируем старт; ошибки/offline → остаётся кэш.
               fetchProfile().then((fresh) => {
                 if (fresh && (fresh as Profile).id) {
                   setProfile(fresh as Profile);
                   storage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(fresh)).catch(() => {});
+                  // Self-heal API_BASE: если конкретная сеть не выбрана —
+                  // ставим базу из СВЕЖЕГО профиля. Чинит кэш без tenant_domain
+                  // без ручного ре-логина (тенантные запросы перестают 404-ить).
+                  if (!savedTenant?.domain) {
+                    const dom = (fresh as Profile).tenant_domain
+                      || (fresh as Profile).companies?.[0]?.domain;
+                    if (dom) setApiBase(dom);
+                  }
                 }
               }).catch(() => {});
             } catch {}
@@ -210,6 +222,9 @@ function AuthGate() {
   }, []);
 
   const onLogout = useCallback(async () => {
+    // Снимаем push-токен на бэке ПОКА авторизация ещё валидна — иначе бэк
+    // продолжит слать пуши на разлогиненное устройство.
+    try { await unregisterPushToken(); } catch {}
     try { await apiLogout(); } catch {}
     setAuthToken(null);
     setToken(null);
