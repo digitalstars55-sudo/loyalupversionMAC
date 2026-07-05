@@ -471,10 +471,12 @@ export interface GeneralStats {
   community_subs_cafe?: number;
   community_subs_delivery?: number;
   community_subs_story?: number;
+  community_subs_website?: number;     // подписки в VK с сайта
   community_subs_other?: number;
   newsletter_subs_cafe?: number;
   newsletter_subs_delivery?: number;
   newsletter_subs_story?: number;
+  newsletter_subs_website?: number;    // подписки на рассылку с сайта
   newsletter_subs_other?: number;
   new_group_with_gift: number;
 
@@ -484,6 +486,15 @@ export interface GeneralStats {
   first_gift_receivers: number;
   gift_activators: number;
 
+  // Воронка «Сториз» (подарки из сториз)
+  story_gift_receivers?: number;
+  story_gift_activators?: number;
+
+  // Воронка «Сайт» (QR на сайте клиента)
+  website_gift_players?: number;
+  website_gift_receivers?: number;
+  website_gift_activators?: number;
+
   // Birthdays
   birthday_greetings_sent: number;
   birthday_celebrants: number;
@@ -492,6 +503,7 @@ export interface GeneralStats {
   message_open_rate: number | null;   // %
   message_total_sent: number;
   message_total_read: number;
+  message_trackable?: number;          // отслеживаемые (с vk_message_id)
 
   // VK stories
   vk_stories_publishers: number;
@@ -500,6 +512,7 @@ export interface GeneralStats {
   // POS
   pos_guests: number;
   scan_index: number;                  // QR / POS * 100
+  pos_data_days?: number;              // дней с POS-данными (окно индекса)
 
   // Период (для отображения)
   period_label: string;

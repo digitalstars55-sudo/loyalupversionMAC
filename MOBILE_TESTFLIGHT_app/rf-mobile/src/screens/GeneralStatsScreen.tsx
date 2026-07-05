@@ -166,11 +166,18 @@ export const GeneralStatsScreen: React.FC<{
             <Metric s={s} accent={C.purple}   emoji="🏪" label="В VK через кафе"          val={stats.community_subs_cafe ?? 0} />
             <Metric s={s} accent={C.watch}    emoji="🚚" label="В VK через доставку"      val={stats.community_subs_delivery ?? 0} />
             <Metric s={s} accent={C.limeDeep} emoji="📖" label="В VK через сториз"        val={stats.community_subs_story ?? 0} />
+            <Metric s={s} accent={C.limeDeep} emoji="🌐" label="В VK с сайта"            val={stats.community_subs_website ?? 0} />
             <Metric s={s} accent={C.purple}   emoji="🏪" label="Рассылка через кафе"      val={stats.newsletter_subs_cafe ?? 0} />
             <Metric s={s} accent={C.watch}    emoji="🚚" label="Рассылка через доставку"  val={stats.newsletter_subs_delivery ?? 0} />
             <Metric s={s} accent={C.limeDeep} emoji="📖" label="Рассылка через сториз"    val={stats.newsletter_subs_story ?? 0} />
+            <Metric s={s} accent={C.limeDeep} emoji="🌐" label="Рассылка с сайта"        val={stats.newsletter_subs_website ?? 0} />
             <Metric s={s} accent={C.good}     emoji="🎁" label="Получили первый подарок"  val={stats.first_gift_receivers} />
             <Metric s={s} accent={C.good}     emoji="✅" label="Активировали подарок"     val={stats.gift_activators} />
+            <Metric s={s} accent={C.limeDeep} emoji="📱" label="Подарок через сториз"     val={stats.story_gift_receivers ?? 0} />
+            <Metric s={s} accent={C.limeDeep} emoji="🎁" label="Активир. через сториз"    val={stats.story_gift_activators ?? 0} />
+            <Metric s={s} accent={C.limeDeep} emoji="🌐" label="Сыграли с сайта"          val={stats.website_gift_players ?? 0} />
+            <Metric s={s} accent={C.limeDeep} emoji="🌐" label="Подарок с сайта"          val={stats.website_gift_receivers ?? 0} />
+            <Metric s={s} accent={C.limeDeep} emoji="🌐" label="Активир. с сайта"         val={stats.website_gift_activators ?? 0} />
             <Metric s={s} accent={C.watch}    emoji="🎂" label="Поздравлений с ДР"        val={stats.birthday_greetings_sent} />
             <Metric s={s} accent={C.watch}    emoji="🎉" label="Пришли на ДР"             val={stats.birthday_celebrants} />
             <Metric
