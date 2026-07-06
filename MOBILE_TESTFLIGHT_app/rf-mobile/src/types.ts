@@ -554,6 +554,20 @@ export interface LoyaltyReport {
     from_cafe: number;
     from_delivery: number;
   };
+  // Точки контакта (отслеживаемые QR, src=<метка>) — воронка по каждой
+  contact_points?: {
+    id: number;
+    name: string;
+    branch: string;
+    mode: string;
+    is_active: boolean;
+    scans: number;
+    guests: number;
+    subscribed: number;
+    played: number;
+    activated: number;
+    conversion: number;
+  }[];
   // AI-резюме
   ai_summary?: string;
 }

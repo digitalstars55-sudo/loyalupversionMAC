@@ -221,6 +221,32 @@ export const ReportsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               <Snap s={s} bg={C.limeSoft}   ic="📖" label="Из историй" val={fmtNum(report.sources.from_delivery)} sub="рефералы в ВК" />
             </Grid>
 
+            {/* Подписки с сайта */}
+            <SecTitle>Подписки с сайта</SecTitle>
+            <Grid pad={r.pad}>
+              <Snap s={s} bg={C.limeSoft} ic="🌐" label="В VK с сайта"     val={fmtNum(report.stats.community_subs_website ?? 0)} sub="QR на сайте" />
+              <Snap s={s} bg={C.limeSoft} ic="🌐" label="Рассылка с сайта" val={fmtNum(report.stats.newsletter_subs_website ?? 0)} sub="QR на сайте" />
+            </Grid>
+
+            {/* Точки контакта */}
+            {report.contact_points && report.contact_points.length > 0 && (
+              <>
+                <SecTitle>Точки контакта</SecTitle>
+                <ListCard pad={r.pad}>
+                  {report.contact_points.map((cp, i, arr) => (
+                    <IconRow
+                      key={cp.id}
+                      ic="📌" bg={C.purpleSoft}
+                      label={`${cp.name} · ${cp.branch}`}
+                      val={`${fmtNum(cp.subscribed)} подп.`}
+                      valColor={C.purpleDeep}
+                      last={i === arr.length - 1}
+                    />
+                  ))}
+                </ListCard>
+              </>
+            )}
+
             {/* Segments breakdown */}
             <SecTitle>По сегментам</SecTitle>
             <ListCard pad={r.pad}>
