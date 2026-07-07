@@ -233,7 +233,15 @@ export const sendPushTokenToBackend = async (token: string): Promise<void> => {
 // Бэк удаляет связку по (user, token) через DELETE /api/v1/push/register/.
 // token необязателен — по умолчанию берём последний зарегистрированный.
 export const unregisterPushToken = async (token?: string): Promise<void> => {
-  const tok = token || _lastPushToken;
+  // _lastPushToken живёт в памяти модуля и обнуляется при перезапуске приложения.
+  // Если пользователь перезапустил апп и вышел, не открыв экран, где идёт
+  // регистрация, — _lastPushToken пуст, и раньше unregister молча не срабатывал
+  // → токен оставался на бэке и устройство ловило пуши разлогиненным.
+  // Фолбэк: дотягиваем актуальный токен устройства прямо сейчас.
+  let tok = token || _lastPushToken;
+  if (!tok) {
+    try { tok = await registerForPushNotifications(); } catch {}
+  }
   if (!tok || USE_MOCK) return;
   try {
     const auth = getAuthToken();
