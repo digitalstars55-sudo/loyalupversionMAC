@@ -28,7 +28,17 @@ const EVENT_EMOJI: Record<string, string> = {
   gift_not_claimed: '🎁',
   no_visit_days: '💤',
   subscribed_days: '👋',
+  follow_up: '🔁',
 };
+
+const Stat: React.FC<{ label: string; value: string; accent?: boolean }> = ({ label, value, accent }) => (
+  <View>
+    <Text style={{ fontSize: 11, color: C.ink4 }}>{label}</Text>
+    <Text style={{ fontSize: 16, fontWeight: '800', color: accent ? C.purpleDeep : C.ink, marginTop: 2 }}>
+      {value}
+    </Text>
+  </View>
+);
 
 export const AutoBroadcastsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const r = useResponsive();
@@ -218,10 +228,38 @@ export const AutoBroadcastsScreen: React.FC<{ onBack: () => void }> = ({ onBack 
                   />
                 </View>
 
-                {/* Статистика */}
-                <Text style={{ fontSize: 12, color: C.ink3, marginTop: 10 }}>
-                  Отправлено всего: <Text style={{ fontWeight: '700', color: C.ink }}>{rule.sent_total}</Text>
-                </Text>
+                {/* Догоняющее — за кем идём */}
+                {rule.parent_rule_name ? (
+                  <Text style={{ fontSize: 12, color: C.ink4, marginTop: 8 }}>
+                    🔁 догоняет: {rule.parent_rule_name}
+                  </Text>
+                ) : null}
+
+                {/* Статистика: отправлено / прочитано / % открытий */}
+                <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
+                  <Stat label="Отправлено" value={String(rule.sent ?? 0)} />
+                  <Stat label="Прочитано"  value={String(rule.read ?? 0)} />
+                  <Stat label="% открытий" value={`${rule.open_rate ?? 0}%`} accent />
+                </View>
+
+                {/* A/B: результат по вариантам */}
+                {rule.variants?.length ? (
+                  <View style={{ marginTop: 10, backgroundColor: C.bg, borderRadius: 10, padding: 10 }}>
+                    <Text style={{ fontSize: 11, color: C.ink4, fontWeight: '700', marginBottom: 6 }}>
+                      A/B-ТЕСТ
+                    </Text>
+                    {rule.variants.map(v => (
+                      <View key={v.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 3 }}>
+                        <Text style={{ fontSize: 12, color: C.ink2, flex: 1 }} numberOfLines={1}>
+                          {v.name} <Text style={{ color: C.ink4 }}>(вес {v.weight})</Text>
+                        </Text>
+                        <Text style={{ fontSize: 12, color: C.ink3 }}>
+                          {v.sent} → <Text style={{ fontWeight: '700', color: C.purpleDeep }}>{v.open_rate}%</Text>
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
 
                 {/* Текст */}
                 {open ? (

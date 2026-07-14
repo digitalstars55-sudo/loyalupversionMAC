@@ -827,6 +827,24 @@ export interface AutoBroadcastRule {
   gender_filter: string;
   segments_count: number;
   sent_total: number;
+  // Фаза 3: статистика и A/B
+  sent: number;
+  read: number;
+  failed: number;
+  open_rate: number;
+  variants: AutoBroadcastVariantStat[];
+  parent_rule_name: string | null;   // за каким правилом догоняем
+}
+
+export interface AutoBroadcastVariantStat {
+  id: number;
+  name: string;
+  weight: number;
+  is_active: boolean;
+  sent: number;
+  read: number;
+  failed: number;
+  open_rate: number;
 }
 
 export interface AutoBroadcastPreview {
