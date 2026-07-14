@@ -26,6 +26,8 @@ const EVENT_EMOJI: Record<string, string> = {
   birthday: '🎉',
   after_game_3h: '🎮',
   gift_not_claimed: '🎁',
+  no_visit_days: '💤',
+  subscribed_days: '👋',
 };
 
 export const AutoBroadcastsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
