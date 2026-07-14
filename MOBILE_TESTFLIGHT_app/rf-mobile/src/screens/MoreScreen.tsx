@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Sparkles, MessageSquare, Users, BarChart3, Store, SlidersHorizontal,
-  HelpCircle, LogOut, ChevronRight, Phone, Bell, Bot, User, Megaphone, Shield,
+  HelpCircle, LogOut, ChevronRight, Phone, Bell, Bot, User, Megaphone, Shield, Zap,
   Gift, Target, FolderTree, KeyRound, CloudOff, Globe, QrCode,
 } from 'lucide-react-native';
 
@@ -18,6 +18,7 @@ import { startTour } from '../tourTargets';
 import { AutoReplySettings } from './AutoReplySettings';
 import { ManagerContact } from './ManagerContact';
 import { CampaignsScreen } from './CampaignsScreen';
+import { AutoBroadcastsScreen } from './AutoBroadcastsScreen';
 import { GuestsScreen } from './GuestsScreen';
 import { BranchesScreen } from './BranchesScreen';
 import { RFThresholdsScreen } from './RFThresholdsScreen';
@@ -43,6 +44,7 @@ import type { AutoReplySettings as Settings, Review } from '../types';
 // MORE SCREEN — меню с подразделами
 // ════════════════════════════════════════════════════════════════════
 type SubScreen =
+  | 'auto-broadcasts'
   | 'auto-reply'
   | 'manager-contact'
   | 'campaigns'
@@ -106,6 +108,7 @@ export const MoreScreen: React.FC<{
     <ManagerContact onBack={() => setSub(null)} onOpenChat={() => { setSub(null); onOpenChat(); }} />
   );
   else if (sub === 'campaigns')     subEl = <CampaignsScreen     onBack={() => setSub(null)} />;
+  else if (sub === 'auto-broadcasts') subEl = <AutoBroadcastsScreen onBack={() => setSub(null)} />;
   else if (sub === 'guests')        subEl = <GuestsScreen        onBack={() => setSub(null)} initialGuestVkId={openGuestVkId} />;
   else if (sub === 'branches')      subEl = (
     <BranchesScreen onBack={() => setSub(null)} reviews={reviews} onContactManager={() => { setSub(null); onOpenChat(); }} />
@@ -191,6 +194,16 @@ export const MoreScreen: React.FC<{
               title="Рассылки"
               sub="История рассылок и охват"
               onPress={open('campaigns')}
+            />
+            )}
+            {can('broadcasts') && (
+            <MenuRow
+              s={s}
+              icon={<Zap size={18} color={C.purpleDeep} strokeWidth={2} />}
+              iconBg={C.purpleSoft}
+              title="Авторассылки"
+              sub="Сами уходят при событии"
+              onPress={open('auto-broadcasts')}
             />
             )}
             {can('guests') && (

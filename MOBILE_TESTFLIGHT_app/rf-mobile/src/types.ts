@@ -808,3 +808,31 @@ export interface SubscriptionStatus {
   auto_pay_enabled: boolean;
   paid_until: string;        // ISO
 }
+
+// ── Авторассылки («конструктор») ──────────────────────────────────────
+// Создание правил и тонкая настройка условий — в вебе.
+// Мобилка: список, вкл/выкл, правка текста, статистика, предпросмотр.
+export interface AutoBroadcastRule {
+  id: number;
+  name: string;
+  event: string;
+  event_label: string;
+  is_active: boolean;
+  delay_days: number | null;
+  send_hour_start: number;
+  send_hour_end: number;
+  message_text: string;
+  priority: number;
+  branches_count: number;   // 0 = все точки
+  gender_filter: string;
+  segments_count: number;
+  sent_total: number;
+}
+
+export interface AutoBroadcastPreview {
+  recipients: number;
+  due_now: boolean;
+  reason: string;
+  sample_text: string;
+  sample_names: string[];
+}

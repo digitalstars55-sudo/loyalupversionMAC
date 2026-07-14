@@ -1,4 +1,5 @@
 import type {
+  AutoBroadcastRule, AutoBroadcastPreview,
   Mode, RFMatrixResponse, Guest, Review, AutoReplySettings,
   ChatMessage, ChatManager, Campaign, RFMigration, RFThresholds, RFBranch,
   Profile, Staff, FeatureChoice, SubscriptionStatus,
@@ -1894,4 +1895,44 @@ export async function updatePushPrefs(p: {
   });
   if (!res.ok) throw new Error(`updatePushPrefs failed: ${res.status}`);
   return await res.json();
+}
+
+// ── Авторассылки («конструктор») ──────────────────────────────────────
+export async function fetchAutoBroadcasts(): Promise<AutoBroadcastRule[]> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 150)); return []; }
+  const res = await fetch(new URL('/api/v1/auto-broadcasts/', getApiBase()).toString(), {
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  if (!res.ok) throw new Error(`Auto-broadcasts fetch failed: ${res.status}`);
+  const data = await res.json();
+  return data?.rules ?? [];
+}
+
+export async function updateAutoBroadcast(
+  id: number,
+  patch: { message_text?: string; is_active?: boolean },
+): Promise<AutoBroadcastRule> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return {} as AutoBroadcastRule; }
+  const res = await fetch(new URL(`/api/v1/auto-broadcasts/${id}/`, getApiBase()).toString(), {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() },
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.message_text?.[0] || data?.detail || `Update failed: ${res.status}`);
+  return data;
+}
+
+// Предпросмотр: скольким уйдёт. НИЧЕГО не отправляет.
+export async function previewAutoBroadcast(id: number): Promise<AutoBroadcastPreview> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 300));
+    return { recipients: 0, due_now: false, reason: 'mock', sample_text: '', sample_names: [] };
+  }
+  const res = await fetch(new URL(`/api/v1/auto-broadcasts/${id}/preview/`, getApiBase()).toString(), {
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.detail || `Preview failed: ${res.status}`);
+  return data;
 }
