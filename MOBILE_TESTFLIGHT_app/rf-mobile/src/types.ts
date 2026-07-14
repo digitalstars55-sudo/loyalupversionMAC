@@ -489,11 +489,13 @@ export interface GeneralStats {
   // Воронка «Сториз» (подарки из сториз)
   story_gift_receivers?: number;
   story_gift_activators?: number;
+  story_gift_expired?: number;      // получил, но не дошёл в кафе — подарок сгорел
 
   // Воронка «Сайт» (QR на сайте клиента)
   website_gift_players?: number;
   website_gift_receivers?: number;
   website_gift_activators?: number;
+  website_gift_expired?: number;
 
   // Birthdays
   birthday_greetings_sent: number;

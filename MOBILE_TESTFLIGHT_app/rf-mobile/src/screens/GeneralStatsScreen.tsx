@@ -175,9 +175,11 @@ export const GeneralStatsScreen: React.FC<{
             <Metric s={s} accent={C.good}     emoji="✅" label="Активировали подарок"     val={stats.gift_activators} />
             <Metric s={s} accent={C.limeDeep} emoji="📱" label="Подарок через сториз"     val={stats.story_gift_receivers ?? 0} />
             <Metric s={s} accent={C.limeDeep} emoji="🎁" label="Активир. через сториз"    val={stats.story_gift_activators ?? 0} />
+            <Metric s={s} accent={C.warn}     emoji="🔥" label="Сгорело (сториз)"         val={stats.story_gift_expired ?? 0} />
             <Metric s={s} accent={C.limeDeep} emoji="🌐" label="Сыграли с сайта"          val={stats.website_gift_players ?? 0} />
             <Metric s={s} accent={C.limeDeep} emoji="🌐" label="Подарок с сайта"          val={stats.website_gift_receivers ?? 0} />
             <Metric s={s} accent={C.limeDeep} emoji="🌐" label="Активир. с сайта"         val={stats.website_gift_activators ?? 0} />
+            <Metric s={s} accent={C.warn}     emoji="🔥" label="Сгорело (сайт)"           val={stats.website_gift_expired ?? 0} />
             <Metric s={s} accent={C.watch}    emoji="🎂" label="Поздравлений с ДР"        val={stats.birthday_greetings_sent} />
             <Metric s={s} accent={C.watch}    emoji="🎉" label="Пришли на ДР"             val={stats.birthday_celebrants} />
             <Metric
