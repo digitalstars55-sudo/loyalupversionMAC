@@ -775,6 +775,14 @@ export async function sendBroadcast(p: {
   // A/B тест (опционально): если variants заданы — message_text игнорируется.
   variants?: { label: 'A' | 'B'; text: string; percent: number }[];
   gender_filter?: GenderFilter;
+  // Контекст ячейки матрицы: бэкенд собирает аудиторию ровно как показанную
+  // цифру (режим/точки/период) и отбивает отправку, если фактическая
+  // аудитория заметно больше показанной.
+  r_score?: number;
+  f_score?: number;
+  expected_count?: number;
+  start?: string; // ISO YYYY-MM-DD — произвольный период экрана аналитики
+  end?: string;
 }): Promise<{ total_sent: number; variants?: { label: 'A' | 'B'; sent_count: number }[] }> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 1200));
@@ -796,6 +804,13 @@ export async function sendBroadcast(p: {
   fd.append('mode', p.mode);
   fd.append('branch_ids', p.branch_ids.join(','));
   if (p.gender_filter && p.gender_filter !== 'all') fd.append('gender_filter', p.gender_filter);
+  if (p.r_score != null) fd.append('r_score', String(p.r_score));
+  if (p.f_score != null) fd.append('f_score', String(p.f_score));
+  if (p.expected_count != null) fd.append('expected_count', String(p.expected_count));
+  if (p.start && p.end) {
+    fd.append('start', p.start);
+    fd.append('end', p.end);
+  }
   if (p.variants && p.variants.length === 2) {
     fd.append('variants', JSON.stringify(p.variants));
   }

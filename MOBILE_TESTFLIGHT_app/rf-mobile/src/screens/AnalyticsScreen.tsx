@@ -608,6 +608,9 @@ export function AnalyticsScreen({
         info={selected?.info ?? null}
         mode={mode}
         branchIds={branchId === 0 ? [] : [branchId]}
+        dateRange={customRange
+          ? { start_date: customRange.start_date, end_date: customRange.end_date }
+          : null}
         s={s} r={r}
       />
 

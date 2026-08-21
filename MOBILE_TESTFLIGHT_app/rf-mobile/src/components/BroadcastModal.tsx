@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, Pressable, ScrollView,
-  TextInput, Alert, ActivityIndicator, Image, StyleSheet,
+  TextInput, Alert, ActivityIndicator, Image, StyleSheet, Platform,
 } from 'react-native';
 import { SheetModal } from './SheetModal';
 import {
@@ -30,9 +30,12 @@ export const BroadcastModal: React.FC<{
   info: SegmentInfo | null;
   mode: Mode;
   branchIds: number[];
+  // Произвольный период экрана аналитики — тот же, что ушёл в fetchRFMatrix.
+  // null = дефолтное окно матрицы (30 дней), бэкенд использует такое же.
+  dateRange?: { start_date: string; end_date: string } | null;
   s: S;
   r: Resp;
-}> = ({ visible, onClose, cell, info, mode, branchIds, s, r }) => {
+}> = ({ visible, onClose, cell, info, mode, branchIds, dateRange, s, r }) => {
   const [text, setText] = useState('');
   const [textB, setTextB] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -181,6 +184,11 @@ export const BroadcastModal: React.FC<{
                 message_text: text.trim(),
                 mode, branch_ids: branchIds, image_uri: imageUri,
                 gender_filter: gender,
+                r_score: cell.r_score,
+                f_score: cell.f_score,
+                expected_count: cell.count,
+                start: dateRange?.start_date,
+                end: dateRange?.end_date,
                 variants: abMode ? [
                   { label: 'A', text: text.trim(), percent: splitA },
                   { label: 'B', text: textB.trim(), percent: 100 - splitA },
