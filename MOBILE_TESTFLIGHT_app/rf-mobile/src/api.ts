@@ -22,7 +22,7 @@ import {
   MOCK_GIFTS_ANALYTICS, MOCK_QUESTS_ANALYTICS, MOCK_ENGAGEMENT_SUMMARY,
   MOCK_CONTACT_POINTS, MOCK_CROSS_REVIEWS,
 } from './mocks';
-import { cacheSet, withCache } from './storage';
+import { cacheSet, withCache, storage, STORAGE_KEYS } from './storage';
 import { isForceOffline, markOffline, markOnline } from './network';
 import type { AssistantAction } from './navBridge';
 
@@ -104,8 +104,61 @@ let _authToken: string | null = null;
 export const setAuthToken = (t: string | null) => { _authToken = t; };
 export const getAuthToken = () => _authToken;
 
+// Refresh-токен (90 дней против 30 у access): раньше сохранялся в storage,
+// но НИКОГДА не использовался — по истечении access все запросы падали в 401,
+// список отзывов замирал на кэше, а пользователя выкидывало на логин.
+let _refreshToken: string | null = null;
+export const setRefreshToken = (t: string | null) => { _refreshToken = t; };
+
 const authHeaders = (): Record<string, string> =>
   _authToken ? { Authorization: `Bearer ${_authToken}` } : {};
+
+// Single-flight: параллельные 401 делят ОДИН запрос обновления.
+let _refreshing: Promise<boolean> | null = null;
+async function tryRefreshToken(): Promise<boolean> {
+  if (!_refreshToken || USE_MOCK) return false;
+  if (!_refreshing) {
+    _refreshing = (async () => {
+      try {
+        const res = await fetch(new URL('/api/v1/auth/refresh/', getApiBase()).toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh: _refreshToken }),
+        });
+        if (!res.ok) {
+          // Refresh тоже истёк/отозван — чистим, дальше обычный путь на логин.
+          if (res.status === 401) _refreshToken = null;
+          return false;
+        }
+        const data = await res.json();
+        if (!data?.token) return false;
+        setAuthToken(data.token);
+        storage.setItem(STORAGE_KEYS.AUTH_TOKEN, data.token).catch(() => {});
+        return true;
+      } catch {
+        return false;
+      } finally {
+        // Отпускаем single-flight после завершения (успех кэшируется в токене).
+        setTimeout(() => { _refreshing = null; }, 0);
+      }
+    })();
+  }
+  return _refreshing;
+}
+
+/**
+ * fetch с авто-обновлением токена: на 401 один раз пробуем refresh и
+ * повторяем запрос со свежим Bearer. Refresh не удался — возвращаем
+ * исходный 401 (поведение как раньше). Сетевые ошибки — как в netFetch.
+ */
+async function authedFetch(input: string, init?: RequestInit): Promise<Response> {
+  const res = await authedFetch(input, init);
+  if (res.status !== 401 || !_refreshToken) return res;
+  const refreshed = await tryRefreshToken();
+  if (!refreshed || !_authToken) return res;
+  const headers = { ...(init?.headers as Record<string, string> | undefined), Authorization: `Bearer ${_authToken}` };
+  return netFetch(input, { ...init, headers });
+}
 
 /**
  * Универсальный fetch с детектом сетевых ошибок и обновлением network-флага.
@@ -153,6 +206,7 @@ export async function login(p: LoginCredentials): Promise<LoginResponse> {
   }
   const data: LoginResponse = await res.json();
   setAuthToken(data.token);
+  setRefreshToken((data as { refresh?: string }).refresh ?? null);
   return data;
 }
 
@@ -160,13 +214,15 @@ export async function logout(): Promise<void> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 200));
     setAuthToken(null);
+    setRefreshToken(null);
     return;
   }
-  await fetch(new URL('/api/v1/auth/logout/', getApiBase()).toString(), {
+  await authedFetch(new URL('/api/v1/auth/logout/', getApiBase()).toString(), {
     method: 'POST',
     headers: { ...authHeaders() },
   }).catch(() => {});
   setAuthToken(null);
+  setRefreshToken(null);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -205,7 +261,7 @@ export async function createLead(): Promise<LeadResponse> {
       status: 'draft',
     };
   }
-  const res = await netFetch(new URL('/api/v1/leads/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/leads/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({}),
@@ -235,7 +291,7 @@ export async function chatWithLeadAI(p: { session_token: string; message: string
     // В моке AI-чата нет — сразу триггерим fallback на скрипт
     throw new AIFallbackError('Mock-режим: AI-чат недоступен, fallback на скрипт');
   }
-  const res = await netFetch(
+  const res = await authedFetch(
     new URL(`/api/v1/leads/${encodeURIComponent(p.session_token)}/chat/`, getApiBase()).toString(),
     {
       method: 'POST',
@@ -267,7 +323,7 @@ export async function submitLeadByToken(session_token: string, vk_token?: string
   }
   // Если есть vk_token — пишем его перед submit (он чувствительный, отдельным PATCH)
   if (vk_token) {
-    await netFetch(
+    await authedFetch(
       new URL(`/api/v1/leads/${encodeURIComponent(session_token)}/`, getApiBase()).toString(),
       {
         method: 'PATCH',
@@ -276,7 +332,7 @@ export async function submitLeadByToken(session_token: string, vk_token?: string
       },
     ).catch(() => {});
   }
-  const res = await netFetch(
+  const res = await authedFetch(
     new URL(`/api/v1/leads/${encodeURIComponent(session_token)}/submit/`, getApiBase()).toString(),
     { method: 'POST', headers: { 'Content-Type': 'application/json' } },
   );
@@ -302,7 +358,7 @@ export async function submitLead(p: LeadDraftPayload): Promise<LeadResponse> {
     };
   }
   // 1) создаём лид с базовыми полями
-  const createRes = await netFetch(new URL('/api/v1/leads/', getApiBase()).toString(), {
+  const createRes = await authedFetch(new URL('/api/v1/leads/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
@@ -323,7 +379,7 @@ export async function submitLead(p: LeadDraftPayload): Promise<LeadResponse> {
 
   // 2) PATCH с vk_token (передаётся отдельно — он чувствительный)
   if (p.vk_token) {
-    await netFetch(
+    await authedFetch(
       new URL(`/api/v1/leads/${created.session_token}/`, getApiBase()).toString(),
       {
         method: 'PATCH',
@@ -334,7 +390,7 @@ export async function submitLead(p: LeadDraftPayload): Promise<LeadResponse> {
   }
 
   // 3) submit
-  const submitRes = await netFetch(
+  const submitRes = await authedFetch(
     new URL(`/api/v1/leads/${created.session_token}/submit/`, getApiBase()).toString(),
     { method: 'POST', headers: { 'Content-Type': 'application/json' } },
   );
@@ -436,7 +492,7 @@ export async function globalSearch(q: string): Promise<SearchResults> {
 
   const url = new URL('/api/v1/search/', getApiBase());
   url.searchParams.set('q', q);
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Search failed: ${res.status}`);
@@ -461,7 +517,7 @@ export async function fetchUpcomingBirthdays(p: {
   const url = new URL('/api/v1/guests/birthdays/', getApiBase());
   if (p.days_ahead != null)   url.searchParams.set('days_ahead', String(p.days_ahead));
   if (p.include_past != null) url.searchParams.set('include_past', p.include_past ? '1' : '0');
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Birthdays fetch failed: ${res.status}`);
@@ -488,7 +544,7 @@ export async function fetchAuditLog(p: {
   if (p.staff_id != null)   url.searchParams.set('staff_id', String(p.staff_id));
   if (p.action_type)        url.searchParams.set('action_type', p.action_type);
   if (p.limit)              url.searchParams.set('limit', String(p.limit));
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Audit log fetch failed: ${res.status}`);
@@ -519,7 +575,7 @@ export async function fetchRFMatrix(p: {
     url.searchParams.set('trend_days', String(p.trend_days));
   }
   const result = await withCache<RFMatrixResponse>(cacheKey, async () => {
-    const res = await netFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+    const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
     if (!res.ok) throw new Error(`RF fetch failed: ${res.status}`);
     const raw = await res.json();
     return _normalizeRFResponse(raw);
@@ -590,7 +646,7 @@ function _normalizeRFResponse(raw: any): RFMatrixResponse {
 
 export async function recalculateRF(p: { mode: Mode; branch_ids: number[] }): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 600)); return; }
-  const res = await fetch(new URL('/api/v1/analytics/rf/recalculate/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/analytics/rf/recalculate/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ mode: p.mode, branch_ids: p.branch_ids.filter(id => id !== 0).join(',') }),
@@ -613,7 +669,7 @@ export async function fetchGuests(p: { mode: Mode; r_score: number; f_score: num
   url.searchParams.set('f_score', String(p.f_score));
   if (p.branch_ids.length) url.searchParams.set('branch_ids', p.branch_ids.join(','));
   const result = await withCache<Guest[]>(cacheKey, async () => {
-    const res = await netFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+    const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
     if (!res.ok) throw new Error(`Guests fetch failed: ${res.status}`);
     const data = await res.json();
     return data.guests ?? [];
@@ -632,7 +688,7 @@ export async function fetchGuestList(p?: { search?: string; limit?: number; offs
   if (p?.search) url.searchParams.set('search', p.search);
   if (p?.limit) url.searchParams.set('limit', String(p.limit));
   if (p?.offset) url.searchParams.set('offset', String(p.offset));
-  const res = await netFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Guests list failed: ${res.status}`);
   return await res.json();
 }
@@ -654,14 +710,14 @@ export async function fetchNotifications(limit = 50): Promise<{ notifications: A
   }
   const url = new URL('/api/v1/notifications/', getApiBase());
   url.searchParams.set('limit', String(limit));
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Notifications fetch failed: ${res.status}`);
   return await res.json();
 }
 
 export async function markNotificationsRead(p?: { ids?: number[]; all?: boolean }): Promise<void> {
   if (USE_MOCK) return;
-  const res = await fetch(new URL('/api/v1/notifications/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/notifications/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() },
     body: JSON.stringify(p?.all ? { all: true } : { ids: p?.ids ?? [] }),
@@ -681,7 +737,7 @@ export async function fetchSegments(): Promise<RFSegment[]> {
       { id: 4, code: 'R3F1', name: 'Новые', emoji: '🌱', count: 31 },
     ];
   }
-  const res = await fetch(new URL('/api/v1/analytics/segments/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/analytics/segments/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Segments fetch failed: ${res.status}`);
@@ -699,7 +755,7 @@ export async function generateBroadcastText(p: { segment_id?: number; draft?: st
     ];
     return drafts[Math.floor(Math.random() * drafts.length)];
   }
-  const res = await fetch(new URL('/api/v1/analytics/rf/generate-broadcast-text/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/analytics/rf/generate-broadcast-text/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ ...(p.segment_id ? { segment_id: p.segment_id } : {}), ...(p.draft ? { draft: p.draft } : {}) }),
@@ -748,7 +804,7 @@ export async function sendBroadcast(p: {
     const ext = (filename.split('.').pop() ?? 'jpg').toLowerCase();
     fd.append('image', { uri: p.image_uri, name: filename, type: `image/${ext === 'jpg' ? 'jpeg' : ext}` } as any);
   }
-  const res = await fetch(new URL('/api/v1/analytics/rf/send-broadcast/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/analytics/rf/send-broadcast/', getApiBase()).toString(), {
     method: 'POST',
     headers: { ...authHeaders() },
     body: fd,
@@ -774,7 +830,7 @@ export async function fetchReviews(p: { branch_ids?: number[]; period_days?: num
   if (p.branch_ids?.length) url.searchParams.set('branch_ids', p.branch_ids.join(','));
   if (p.period_days) url.searchParams.set('period', String(p.period_days));
   const result = await withCache<Review[]>(cacheKey, async () => {
-    const res = await netFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+    const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
     if (!res.ok) throw new Error(`Reviews fetch failed: ${res.status}`);
     const data = await res.json();
     const list: any[] = data.reviews ?? [];
@@ -802,7 +858,7 @@ export async function fetchReviews(p: { branch_ids?: number[]; period_days?: num
 
 export async function replyToReview(p: { review_id: number; text: string }): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 700)); return; }
-  const res = await fetch(new URL(`/api/v1/mobile/reviews/${p.review_id}/reply/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/mobile/reviews/${p.review_id}/reply/`, getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ text: p.text }),
@@ -812,7 +868,7 @@ export async function replyToReview(p: { review_id: number; text: string }): Pro
 
 export async function markReviewResolved(p: { review_id: number }): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 400)); return; }
-  const res = await fetch(new URL(`/api/v1/mobile/reviews/${p.review_id}/resolve/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/mobile/reviews/${p.review_id}/resolve/`, getApiBase()).toString(), {
     method: 'POST',
     headers: { ...authHeaders() },
   });
@@ -824,7 +880,7 @@ export async function markReviewResolved(p: { review_id: number }): Promise<void
 // ════════════════════════════════════════════════════════════════════
 export async function fetchAutoReplySettings(): Promise<AutoReplySettings> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return { ...DEFAULT_AUTO_REPLY_SETTINGS }; }
-  const res = await fetch(new URL('/api/v1/analytics/auto-reply/settings/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/analytics/auto-reply/settings/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Settings fetch failed: ${res.status}`);
@@ -833,7 +889,7 @@ export async function fetchAutoReplySettings(): Promise<AutoReplySettings> {
 
 export async function updateAutoReplySettings(p: AutoReplySettings): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 300)); return; }
-  const res = await fetch(new URL('/api/v1/analytics/auto-reply/settings/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/analytics/auto-reply/settings/', getApiBase()).toString(), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -852,7 +908,7 @@ export async function regenerateDraft(p: { review_id: number; base?: string }): 
     ];
     return { draft_text: variants[Math.floor(Math.random() * variants.length)] };
   }
-  const res = await fetch(new URL(`/api/v1/analytics/reviews/${p.review_id}/regenerate-draft/`, normBase(p.base)).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/analytics/reviews/${p.review_id}/regenerate-draft/`, normBase(p.base)).toString(), {
     method: 'POST',
     headers: { ...authHeaders() },
   });
@@ -863,7 +919,7 @@ export async function regenerateDraft(p: { review_id: number; base?: string }): 
 // Отклонить AI-черновик (на бэке: маркируем что admin отклонил, не присылаем напоминания)
 export async function rejectDraft(p: { review_id: number }): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 300)); return; }
-  const res = await fetch(new URL(`/api/v1/analytics/reviews/${p.review_id}/reject-draft/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/analytics/reviews/${p.review_id}/reject-draft/`, getApiBase()).toString(), {
     method: 'POST',
     headers: { ...authHeaders() },
   });
@@ -875,7 +931,7 @@ export async function rejectDraft(p: { review_id: number }): Promise<void> {
 // ════════════════════════════════════════════════════════════════════
 export async function fetchChatManager(): Promise<ChatManager> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return { ...MOCK_MANAGER }; }
-  const res = await fetch(new URL('/api/v1/support/chat/manager/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/support/chat/manager/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Manager fetch failed: ${res.status}`);
@@ -884,7 +940,7 @@ export async function fetchChatManager(): Promise<ChatManager> {
 
 export async function fetchChatMessages(): Promise<ChatMessage[]> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 250)); return MOCK_MESSAGES; }
-  const res = await fetch(new URL('/api/v1/support/chat/messages/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/support/chat/messages/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Messages fetch failed: ${res.status}`);
@@ -903,7 +959,7 @@ export async function sendChatMessage(p: { text: string }): Promise<ChatMessage>
       status: 'delivered',
     };
   }
-  const res = await fetch(new URL('/api/v1/support/chat/messages/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/support/chat/messages/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ text: p.text }),
@@ -931,7 +987,7 @@ export async function fetchReviewMessages(p: { review_id: number; base?: string 
     }];
   }
   const url = new URL(`/api/v1/mobile/reviews/${p.review_id}/messages/`, normBase(p.base));
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Messages fetch failed: ${res.status}`);
   const data = await res.json();
   return data.messages ?? [];
@@ -959,7 +1015,7 @@ export async function appendReviewMessage(p: { review_id: number; text: string; 
     };
   }
   const url = new URL(`/api/v1/mobile/reviews/${p.review_id}/reply/`, normBase(p.base));
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ text: p.text }),
@@ -979,7 +1035,7 @@ export async function askAssistant(p: {
     await new Promise(r => setTimeout(r, 600));
     return { answer: 'Это демо-режим Лояльчика 🚀 На проде я отвечаю на вопросы по системе.', actions: [] };
   }
-  const res = await fetch(new URL('/api/v1/assistant/ask/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/assistant/ask/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ question: p.question, history: p.history ?? [] }),
@@ -1000,7 +1056,7 @@ export async function fetchAssistantContext(): Promise<{
   };
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return fallback; }
   try {
-    const res = await fetch(new URL('/api/v1/assistant/context/', getApiBase()).toString(), {
+    const res = await authedFetch(new URL('/api/v1/assistant/context/', getApiBase()).toString(), {
       headers: { Accept: 'application/json', ...authHeaders() },
     });
     if (!res.ok) return fallback;
@@ -1028,7 +1084,7 @@ export async function fetchGuestDetail(p: { vk_id: string }): Promise<GuestDetai
     return buildGuestDetailFromGuest(baseGuest);
   }
   const url = new URL(`/api/v1/guests/${encodeURIComponent(p.vk_id)}/`, getApiBase());
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Guest fetch failed: ${res.status}`);
   return await res.json();
 }
@@ -1057,7 +1113,7 @@ export async function fetchGeneralStats(p: {
     url.searchParams.set('start', start.toISOString().slice(0, 10));
     url.searchParams.set('end',   end.toISOString().slice(0, 10));
   }
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Stats fetch failed: ${res.status}`);
   // Бэк отдаёт { stats, charts, meta }; экранам нужен плоский GeneralStats.
   const j = await res.json();
@@ -1085,7 +1141,7 @@ export async function fetchContactPoints(p: {
     url.searchParams.set('start', start.toISOString().slice(0, 10));
     url.searchParams.set('end',   end.toISOString().slice(0, 10));
   }
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Contact points fetch failed: ${res.status}`);
   return await res.json();
 }
@@ -1102,7 +1158,7 @@ export async function fetchCrossOverview(p: { period?: string; start_date?: stri
   } else {
     url.searchParams.set('period', opt.period || '30d');
   }
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Overview fetch failed: ${res.status}`);
   return await res.json();
 }
@@ -1122,7 +1178,7 @@ export async function fetchCrossOverviewReviews(p: {
   }
   url.searchParams.set('sentiment', p.sentiment || 'all');
   url.searchParams.set('page', String(p.page || 1));
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Overview reviews fetch failed: ${res.status}`);
   return await res.json();
 }
@@ -1139,7 +1195,7 @@ export async function fetchLoyaltyReport(p: {
     url.searchParams.set('start', p.start_date);
     url.searchParams.set('end',   p.end_date);
   }
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Report fetch failed: ${res.status}`);
   return await res.json();
 }
@@ -1172,7 +1228,7 @@ export async function getLoyaltyReportPdfUrl(p: {
 // ════════════════════════════════════════════════════════════════════
 export async function fetchCampaigns(): Promise<Campaign[]> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 250)); return MOCK_CAMPAIGNS; }
-  const res = await fetch(new URL('/api/v1/analytics/campaigns/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/analytics/campaigns/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Campaigns fetch failed: ${res.status}`);
@@ -1182,7 +1238,7 @@ export async function fetchCampaigns(): Promise<Campaign[]> {
 
 export async function editCampaign(id: number, message_text: string): Promise<{ updated: number; skipped: string[]; errors: string[] }> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 400)); return { updated: 5, skipped: [], errors: [] }; }
-  const res = await fetch(new URL(`/api/v1/analytics/campaigns/${id}/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/analytics/campaigns/${id}/`, getApiBase()).toString(), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() },
     body: JSON.stringify({ message_text }),
@@ -1196,7 +1252,7 @@ export async function editCampaign(id: number, message_text: string): Promise<{ 
 
 export async function deleteCampaign(id: number): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return; }
-  const res = await fetch(new URL(`/api/v1/analytics/campaigns/${id}/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/analytics/campaigns/${id}/`, getApiBase()).toString(), {
     method: 'DELETE',
     headers: { Accept: 'application/json', ...authHeaders() },
   });
@@ -1214,7 +1270,7 @@ export async function fetchFullMigrations(p: { mode: Mode; period_days: number }
   const url = new URL('/api/v1/analytics/rf/migrations/', getApiBase());
   url.searchParams.set('mode', p.mode);
   url.searchParams.set('trend_days', String(p.period_days));
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Migrations fetch failed: ${res.status}`);
   const data = await res.json();
   return (data.migrations ?? []).map((m: any) => ({
@@ -1232,7 +1288,7 @@ export async function fetchFullMigrations(p: { mode: Mode; period_days: number }
 export async function updateRFThresholds(p: RFThresholds & { branch_id?: number }): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 350)); return; }
   const url = new URL('/api/v1/analytics/rf/thresholds/', getApiBase());
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -1245,7 +1301,7 @@ export async function updateRFThresholds(p: RFThresholds & { branch_id?: number 
 // ════════════════════════════════════════════════════════════════════
 export async function fetchBranches(): Promise<RFBranch[]> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return MOCK.branches; }
-  const res = await fetch(new URL('/api/v1/mobile/branches/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/mobile/branches/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Branches fetch failed: ${res.status}`);
@@ -1265,7 +1321,7 @@ export async function fetchBranches(): Promise<RFBranch[]> {
 // ════════════════════════════════════════════════════════════════════
 export async function fetchProfile(): Promise<Profile> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 150)); return MOCK_PROFILE; }
-  const res = await fetch(new URL('/api/v1/me/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/me/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Profile fetch failed: ${res.status}`);
@@ -1277,7 +1333,7 @@ export async function updateProfile(p: Partial<Profile>): Promise<Profile> {
     await new Promise(r => setTimeout(r, 350));
     return { ...MOCK_PROFILE, ...p };
   }
-  const res = await fetch(new URL('/api/v1/me/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/me/', getApiBase()).toString(), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -1297,7 +1353,7 @@ export async function deleteAccount(password: string): Promise<void> {
     await new Promise(r => setTimeout(r, 350));
     return;
   }
-  const res = await fetch(new URL('/api/v1/me/delete/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/me/delete/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ password }),
@@ -1314,7 +1370,7 @@ export async function fetchStaff(): Promise<{ staff: Staff[]; manageableRoles: (
     await new Promise(r => setTimeout(r, 250));
     return { staff: MOCK_STAFF, manageableRoles: ['manager', 'viewer'], featureChoices: [] };
   }
-  const res = await fetch(new URL('/api/v1/staff/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/staff/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Staff fetch failed: ${res.status}`);
@@ -1326,7 +1382,7 @@ export async function fetchStaff(): Promise<{ staff: Staff[]; manageableRoles: (
 
 export async function updateStaff(p: Partial<Staff> & { id: number }): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return; }
-  const res = await fetch(new URL(`/api/v1/staff/${p.id}/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/staff/${p.id}/`, getApiBase()).toString(), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -1358,7 +1414,7 @@ export async function inviteStaff(p: {
       temp_password: 'demoPass123',
     };
   }
-  const res = await fetch(new URL('/api/v1/staff/invite/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/staff/invite/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -1392,7 +1448,7 @@ export async function linkExistingStaff(p: {
       linked_from_existing: true,
     } as any;
   }
-  const res = await fetch(new URL('/api/v1/staff/link-existing/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/staff/link-existing/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -1404,7 +1460,7 @@ export async function linkExistingStaff(p: {
 
 export async function deleteStaff(id: number): Promise<void> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return; }
-  const res = await fetch(new URL(`/api/v1/staff/${id}/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/staff/${id}/`, getApiBase()).toString(), {
     method: 'DELETE',
     headers: { Accept: 'application/json', ...authHeaders() },
   });
@@ -1416,7 +1472,7 @@ export async function deleteStaff(id: number): Promise<void> {
 
 export async function fetchSubscription(): Promise<SubscriptionStatus> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 150)); return MOCK_SUBSCRIPTION; }
-  const res = await fetch(new URL('/api/v1/billing/status/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/billing/status/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Subscription fetch failed: ${res.status}`);
@@ -1430,7 +1486,7 @@ export async function startPayment(
     await new Promise(r => setTimeout(r, 500));
     return { payment_url: `https://pay.example.ru/${p.bank}?plan=${p.plan}` };
   }
-  const res = await fetch(new URL('/api/v1/billing/pay/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/billing/pay/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -1485,7 +1541,7 @@ export async function adjustGuestCoins(p: CoinAdjustment): Promise<GuestCoinTxn>
       created_at: new Date().toISOString(),
     };
   }
-  const res = await fetch(new URL(`/api/v1/guests/${encodeURIComponent(p.vk_id)}/adjust-coins/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/guests/${encodeURIComponent(p.vk_id)}/adjust-coins/`, getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ amount: p.amount, reason: p.reason }),
@@ -1505,7 +1561,7 @@ export async function fetchCategories(p: { branch_ids?: number[] } = {}): Promis
   }
   const url = new URL('/api/v1/catalog/categories/', getApiBase());
   if (p.branch_ids?.length) url.searchParams.set('branch_ids', p.branch_ids.join(','));
-  const res = await fetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Categories fetch failed: ${res.status}`);
   const data = await res.json();
   return data.categories ?? [];
@@ -1534,7 +1590,7 @@ export async function saveCategory(p: Partial<ProductCategory> & { name: string;
   const url = isUpdate
     ? new URL(`/api/v1/catalog/categories/${p.id}/`, getApiBase())
     : new URL('/api/v1/catalog/categories/', getApiBase());
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     method: isUpdate ? 'PATCH' : 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -1550,7 +1606,7 @@ export async function deleteCategory(id: number): Promise<void> {
     if (idx >= 0) MOCK_CATEGORIES.splice(idx, 1);
     return;
   }
-  const res = await fetch(new URL(`/api/v1/catalog/categories/${id}/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/catalog/categories/${id}/`, getApiBase()).toString(), {
     method: 'DELETE',
     headers: { ...authHeaders() },
   });
@@ -1562,7 +1618,7 @@ export async function deleteCategory(id: number): Promise<void> {
 // ════════════════════════════════════════════════════════════════════
 export async function fetchProducts(): Promise<Product[]> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 250)); return MOCK_PRODUCTS; }
-  const res = await fetch(new URL('/api/v1/catalog/products/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/catalog/products/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Products fetch failed: ${res.status}`);
@@ -1619,7 +1675,7 @@ export async function saveProduct(p: Partial<Product> & {
   const url = isUpdate
     ? new URL(`/api/v1/catalog/products/${p.id}/`, getApiBase())
     : new URL('/api/v1/catalog/products/', getApiBase());
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     method: isUpdate ? 'PATCH' : 'POST',
     headers: { ...authHeaders() },
     body: fd,
@@ -1635,7 +1691,7 @@ export async function deleteProduct(id: number): Promise<void> {
     if (idx >= 0) MOCK_PRODUCTS.splice(idx, 1);
     return;
   }
-  const res = await fetch(new URL(`/api/v1/catalog/products/${id}/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/catalog/products/${id}/`, getApiBase()).toString(), {
     method: 'DELETE', headers: { ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Product delete failed: ${res.status}`);
@@ -1646,7 +1702,7 @@ export async function deleteProduct(id: number): Promise<void> {
 // ════════════════════════════════════════════════════════════════════
 export async function fetchQuests(): Promise<Quest[]> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return MOCK_QUESTS; }
-  const res = await fetch(new URL('/api/v1/quests/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/quests/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Quests fetch failed: ${res.status}`);
@@ -1684,7 +1740,7 @@ export async function saveQuest(p: Partial<Quest> & {
   const url = isUpdate
     ? new URL(`/api/v1/quests/${p.id}/`, getApiBase())
     : new URL('/api/v1/quests/', getApiBase());
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     method: isUpdate ? 'PATCH' : 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -1700,7 +1756,7 @@ export async function deleteQuest(id: number): Promise<void> {
     if (idx >= 0) MOCK_QUESTS.splice(idx, 1);
     return;
   }
-  const res = await fetch(new URL(`/api/v1/quests/${id}/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/quests/${id}/`, getApiBase()).toString(), {
     method: 'DELETE', headers: { ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Quest delete failed: ${res.status}`);
@@ -1711,7 +1767,7 @@ export async function deleteQuest(id: number): Promise<void> {
 // ════════════════════════════════════════════════════════════════════
 export async function fetchPromotions(): Promise<Promotion[]> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return MOCK_PROMOTIONS; }
-  const res = await fetch(new URL('/api/v1/branch/promotions/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/branch/promotions/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Promotions fetch failed: ${res.status}`);
@@ -1767,7 +1823,7 @@ export async function savePromotion(p: Partial<Promotion> & {
   const url = isUpdate
     ? new URL(`/api/v1/branch/promotions/${p.id}/`, getApiBase())
     : new URL('/api/v1/branch/promotions/', getApiBase());
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     method: isUpdate ? 'PATCH' : 'POST',
     headers: { ...authHeaders() },
     body: fd,
@@ -1783,7 +1839,7 @@ export async function deletePromotion(id: number): Promise<void> {
     if (idx >= 0) MOCK_PROMOTIONS.splice(idx, 1);
     return;
   }
-  const res = await fetch(new URL(`/api/v1/branch/promotions/${id}/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/branch/promotions/${id}/`, getApiBase()).toString(), {
     method: 'DELETE', headers: { ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Promotion delete failed: ${res.status}`);
@@ -1794,7 +1850,7 @@ export async function deletePromotion(id: number): Promise<void> {
 // ════════════════════════════════════════════════════════════════════
 export async function fetchDailyCodes(): Promise<DailyCode[]> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return MOCK_DAILY_CODES; }
-  const res = await fetch(new URL('/api/v1/branch/daily-codes/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/branch/daily-codes/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Daily codes fetch failed: ${res.status}`);
@@ -1820,7 +1876,7 @@ export async function generateDailyCode(p: { branch_id: number; purpose?: 'BIRTH
     MOCK_DAILY_CODES.unshift(created);
     return created;
   }
-  const res = await fetch(new URL('/api/v1/branch/daily-codes/generate/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/branch/daily-codes/generate/', getApiBase()).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ branch_id: p.branch_id, purpose: p.purpose ?? 'BIRTHDAY' }),
@@ -1850,7 +1906,7 @@ export async function fetchEngagementAnalytics(p: {
   const url = new URL('/api/v1/analytics/engagement/', getApiBase());
   if (p.period_days) url.searchParams.set('period_days', String(p.period_days));
   if (p.branch_id) url.searchParams.set('branch_id', String(p.branch_id));
-  const res = await fetch(url.toString(), {
+  const res = await authedFetch(url.toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Engagement analytics failed: ${res.status}`);
@@ -1877,7 +1933,7 @@ export async function fetchPushPrefs(): Promise<PushPrefs> {
     available_types:   [{ code: 'review_new', label: 'Новый отзыв', description: 'Гость оставил отзыв' }],
   };
   const url = new URL('/api/v1/me/push-prefs/', getApiBase()).toString();
-  const res = await fetch(url, { headers: { Accept: 'application/json', ...authHeaders() } });
+  const res = await authedFetch(url, { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`fetchPushPrefs failed: ${res.status}`);
   return await res.json();
 }
@@ -1888,7 +1944,7 @@ export async function updatePushPrefs(p: {
 }): Promise<PushPrefs> {
   if (USE_MOCK) return fetchPushPrefs();
   const url = new URL('/api/v1/me/push-prefs/', getApiBase()).toString();
-  const res = await fetch(url, {
+  const res = await authedFetch(url, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(p),
@@ -1900,7 +1956,7 @@ export async function updatePushPrefs(p: {
 // ── Авторассылки («конструктор») ──────────────────────────────────────
 export async function fetchAutoBroadcasts(): Promise<AutoBroadcastRule[]> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 150)); return []; }
-  const res = await fetch(new URL('/api/v1/auto-broadcasts/', getApiBase()).toString(), {
+  const res = await authedFetch(new URL('/api/v1/auto-broadcasts/', getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Auto-broadcasts fetch failed: ${res.status}`);
@@ -1913,7 +1969,7 @@ export async function updateAutoBroadcast(
   patch: { message_text?: string; is_active?: boolean },
 ): Promise<AutoBroadcastRule> {
   if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return {} as AutoBroadcastRule; }
-  const res = await fetch(new URL(`/api/v1/auto-broadcasts/${id}/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/auto-broadcasts/${id}/`, getApiBase()).toString(), {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() },
     body: JSON.stringify(patch),
@@ -1929,7 +1985,7 @@ export async function previewAutoBroadcast(id: number): Promise<AutoBroadcastPre
     await new Promise(r => setTimeout(r, 300));
     return { recipients: 0, due_now: false, reason: 'mock', sample_text: '', sample_names: [] };
   }
-  const res = await fetch(new URL(`/api/v1/auto-broadcasts/${id}/preview/`, getApiBase()).toString(), {
+  const res = await authedFetch(new URL(`/api/v1/auto-broadcasts/${id}/preview/`, getApiBase()).toString(), {
     headers: { Accept: 'application/json', ...authHeaders() },
   });
   const data = await res.json().catch(() => ({}));

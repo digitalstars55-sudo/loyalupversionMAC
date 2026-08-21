@@ -42,7 +42,7 @@ import {
   type PushPayload,
 } from './src/push';
 import { NotificationsScreen, type NotificationItem, PUSH_TYPE_LABELS } from './src/screens/NotificationsScreen';
-import { setAuthToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, fetchNotifications, markNotificationsRead, fetchProfile, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
+import { setAuthToken, setRefreshToken, logout as apiLogout, submitLead, setApiBase, fetchReviews, fetchAutoReplySettings, fetchNotifications, markNotificationsRead, fetchProfile, USE_MOCK, MOCK_TOKEN_PREFIX } from './src/api';
 import { storage, STORAGE_KEYS } from './src/storage';
 import { subscribe as subscribeRealtime, startMockRealtime } from './src/realtime';
 import { registerAssistantNav } from './src/navBridge';
@@ -157,6 +157,12 @@ function AuthGate() {
         if (saved) {
           setAuthToken(saved);
           setToken(saved);
+          // Refresh-токен раньше сохранялся, но не загружался — из-за этого
+          // протухший access было нечем обновить и всё падало в 401.
+          try {
+            const savedRefresh = await storage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+            if (savedRefresh) setRefreshToken(savedRefresh);
+          } catch {}
           if (savedProfile) {
             try {
               const parsedProfile: Profile = JSON.parse(savedProfile);
