@@ -457,7 +457,18 @@ export interface GuestDetail {
 // ════════════════════════════════════════════════════════════════════
 // GENERAL STATS — сводка по всем 16 метрикам (как /analytics/ в вебе)
 // ════════════════════════════════════════════════════════════════════
+// Доли для диаграмм на «Общей статистике» (тот же ответ /analytics/stats/,
+// поле charts — как донаты в веб-версии).
+export interface GeneralCharts {
+  repeat_visits?: { repeat: number; first_time: number };
+  gift_sources?: { free: number; coins: number; not_taken: number };
+  staff_involvement?: { served: number; not_served: number };
+  quests?: { completed: number; pending: number; not_entered: number };
+  vk_stories?: { uploaded: number; not_uploaded: number };
+}
+
 export interface GeneralStats {
+  charts?: GeneralCharts;              // прикрепляется в fetchGeneralStats
   // Engagement
   qr_scans: number;                    // уник. гости со сканом (для индекса оцифровки)
   total_scans?: number;                // «Отсканировали QR-код» = кафе + доставка (события)

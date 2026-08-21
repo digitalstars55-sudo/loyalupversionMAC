@@ -200,6 +200,58 @@ export const GeneralStatsScreen: React.FC<{
           </View>
         )}
 
+        {/* Диаграммы — те же доли, что донаты в веб-версии /analytics/ */}
+        {!loading && stats?.charts && (() => {
+          const ch = stats.charts;
+          const cards: { title: string; slices: { label: string; value: number; color: string }[] }[] = [];
+          if (ch.repeat_visits) cards.push({
+            title: '🔄 Повторные визиты',
+            slices: [
+              { label: 'Повторно', value: ch.repeat_visits.repeat, color: C.limeDeep },
+              { label: 'Разово', value: ch.repeat_visits.first_time, color: C.ink4 },
+            ],
+          });
+          if (ch.gift_sources) cards.push({
+            title: '🎁 Подарки',
+            slices: [
+              { label: 'Бесплатный', value: ch.gift_sources.free, color: C.good },
+              { label: 'За баллы', value: ch.gift_sources.coins, color: C.purple },
+              { label: 'Не забрали', value: ch.gift_sources.not_taken, color: C.ink4 },
+            ],
+          });
+          if (ch.staff_involvement) cards.push({
+            title: '🤝 Персонал',
+            slices: [
+              { label: 'Вовлечены', value: ch.staff_involvement.served, color: C.good },
+              { label: 'Нет', value: ch.staff_involvement.not_served, color: C.ink4 },
+            ],
+          });
+          if (ch.quests) cards.push({
+            title: '🏁 Задания',
+            slices: [
+              { label: 'Вошли и выполнили', value: ch.quests.completed, color: C.limeDeep },
+              { label: 'Вошли и вышли', value: ch.quests.pending, color: C.watch },
+              { label: 'Не заходили', value: ch.quests.not_entered, color: C.ink4 },
+            ],
+          });
+          if (ch.vk_stories) cards.push({
+            title: '📖 Истории ВК',
+            slices: [
+              { label: 'Опубликовали', value: ch.vk_stories.uploaded, color: C.purple },
+              { label: 'Нет', value: ch.vk_stories.not_uploaded, color: C.ink4 },
+            ],
+          });
+          if (!cards.length) return null;
+          return (
+            <View style={{ paddingHorizontal: r.pad, gap: 10, marginTop: 6, marginBottom: 12 }}>
+              <Text style={s.filterLabel}>Доли за период</Text>
+              {cards.map(card => (
+                <ProportionCard key={card.title} title={card.title} slices={card.slices} />
+              ))}
+            </View>
+          );
+        })()}
+
         {/* Hint */}
         <View style={[s.modalHint, { marginHorizontal: r.pad, marginBottom: 8 }]}>
           <Text style={s.modalHintText}>
@@ -216,6 +268,45 @@ export const GeneralStatsScreen: React.FC<{
         s={s}
       />
     </SafeAreaView>
+  );
+};
+
+// ─────────────────────────────────────────────
+// Пропорциональная полоса с легендой — мобильный аналог веб-доната.
+const ProportionCard: React.FC<{
+  title: string;
+  slices: { label: string; value: number; color: string }[];
+}> = ({ title, slices }) => {
+  const total = slices.reduce((a, x) => a + (x.value || 0), 0);
+  return (
+    <View style={{
+      backgroundColor: C.surface, borderRadius: 16, borderWidth: 1,
+      borderColor: C.line, padding: 14, gap: 10,
+    }}>
+      <Text style={{ fontSize: 13, fontWeight: '800', color: C.ink }}>{title}</Text>
+      {total > 0 ? (
+        <>
+          <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: C.lineSoft }}>
+            {slices.filter(x => x.value > 0).map(x => (
+              <View key={x.label} style={{ flex: x.value, backgroundColor: x.color }} />
+            ))}
+          </View>
+          <View style={{ gap: 4 }}>
+            {slices.map(x => (
+              <View key={x.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: x.color }} />
+                <Text style={{ flex: 1, fontSize: 12, color: C.ink2 }}>{x.label}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: C.ink }}>
+                  {fmtNum(x.value)} · {Math.round((x.value / total) * 100)}%
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : (
+        <Text style={{ fontSize: 12, color: C.ink3 }}>Нет данных за выбранный период</Text>
+      )}
+    </View>
   );
 };
 

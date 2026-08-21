@@ -1130,9 +1130,12 @@ export async function fetchGeneralStats(p: {
   }
   const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Stats fetch failed: ${res.status}`);
-  // Бэк отдаёт { stats, charts, meta }; экранам нужен плоский GeneralStats.
+  // Бэк отдаёт { stats, charts, meta }. Экраны читают плоский GeneralStats,
+  // а charts (доли для диаграмм) прикрепляем отдельным полем — раньше они
+  // просто выбрасывались.
   const j = await res.json();
-  return (j && j.stats) ? j.stats : j;
+  if (j && j.stats) return { ...j.stats, charts: j.charts };
+  return j;
 }
 
 // Воронка по точкам контакта (отслеживаемым QR) — /api/v1/analytics/contact-points/
@@ -1200,6 +1203,7 @@ export async function fetchCrossOverviewReviews(p: {
 
 export async function fetchLoyaltyReport(p: {
   branch_ids?: number[];
+  period_days?: number;
   start_date?: string;
   end_date?: string;
 }): Promise<LoyaltyReport> {
@@ -1209,6 +1213,13 @@ export async function fetchLoyaltyReport(p: {
   if (p.start_date && p.end_date) {
     url.searchParams.set('start', p.start_date);
     url.searchParams.set('end',   p.end_date);
+  } else if (p.period_days) {
+    // Бэк ждёт period как enum ЛИБО start/end. period_days произвольное → шлём диапазон.
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - (p.period_days - 1));
+    url.searchParams.set('start', start.toISOString().slice(0, 10));
+    url.searchParams.set('end',   end.toISOString().slice(0, 10));
   }
   const res = await authedFetch(url.toString(), { headers: { Accept: 'application/json', ...authHeaders() } });
   if (!res.ok) throw new Error(`Report fetch failed: ${res.status}`);
@@ -1219,6 +1230,7 @@ export async function fetchLoyaltyReport(p: {
 // Возвращаем готовый URL — UI откроет/расшарит.
 export async function getLoyaltyReportPdfUrl(p: {
   branch_ids?: number[];
+  period_days?: number;
   start_date?: string;
   end_date?: string;
   hide?: number[];   // номера секций (1..11), которые НЕ включать в PDF (LU-11)
@@ -1230,6 +1242,12 @@ export async function getLoyaltyReportPdfUrl(p: {
   if (p.start_date && p.end_date) {
     url.searchParams.set('start', p.start_date);
     url.searchParams.set('end',   p.end_date);
+  } else if (p.period_days) {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - (p.period_days - 1));
+    url.searchParams.set('start', start.toISOString().slice(0, 10));
+    url.searchParams.set('end',   end.toISOString().slice(0, 10));
   }
   if (p.hide?.length) url.searchParams.set('hide', p.hide.join(','));
   // При наличии токена — прокидываем как query (или используем cookies)

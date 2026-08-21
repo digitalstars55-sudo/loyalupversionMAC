@@ -61,7 +61,9 @@ export const ReportsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const load = async () => {
     try {
       const [rep, br] = await Promise.all([
-        fetchLoyaltyReport({ branch_ids: branchId === 0 ? [] : [branchId] }),
+        // period_days обязателен: раньше выбор периода менял только чипсы,
+        // а отчёт всегда приходил за дефолтное окно бэка.
+        fetchLoyaltyReport({ branch_ids: branchId === 0 ? [] : [branchId], period_days: periodDays }),
         branches.length > 0 ? Promise.resolve(branches) : fetchBranches(),
       ]);
       setReport(rep);
@@ -78,7 +80,7 @@ export const ReportsScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     haptic('medium');
     setExporting(true);
     try {
-      const url = await getLoyaltyReportPdfUrl({ branch_ids: branchId === 0 ? [] : [branchId], hide: hiddenSections });
+      const url = await getLoyaltyReportPdfUrl({ branch_ids: branchId === 0 ? [] : [branchId], period_days: periodDays, hide: hiddenSections });
       if (Platform.OS === 'web') {
         window.open(url, '_blank');
       } else {

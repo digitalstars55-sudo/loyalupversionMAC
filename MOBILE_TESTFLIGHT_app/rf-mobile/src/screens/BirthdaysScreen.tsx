@@ -5,7 +5,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  ChevronLeft, Cake, Phone, Send, Check,
+  ChevronLeft, Cake, Phone, Check, Info,
 } from 'lucide-react-native';
 
 import { C } from '../theme';
@@ -67,18 +67,15 @@ export const BirthdaysScreen: React.FC<{
   const todayCount = list.filter(b => b.days_until === 0).length;
   const next7Loyal = list.filter(b => b.days_until >= 0 && b.days_until <= 7 && b.is_loyal).length;
 
+  // Раньше здесь была кнопка-пустышка «Рассылка всем»: показывала «запущена»,
+  // не делая ни одного запроса. Поздравления на самом деле уходят автоматически
+  // (шаблоны birthday_7d / birthday_1d / birthday на бэке) — честно объясняем это.
   const onSendBroadcast = () => {
-    haptic('medium');
+    haptic('light');
     Alert.alert(
-      'Запустить рассылку именинникам?',
-      `Будет отправлено ${filtered.length} ${plural(filtered.length, ['гостю', 'гостям', 'гостям'])}. Используется AI-шаблон поздравления с подарком.`,
-      [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Запустить', onPress: () => {
-          haptic('success');
-          Alert.alert('Готово', 'Рассылка запущена. Статус — в Ещё → Рассылки.');
-        }},
-      ],
+      'Поздравления уходят автоматически',
+      `Каждому из ${filtered.length} ${plural(filtered.length, ['гостя', 'гостей', 'гостей'])} система сама отправит поздравление с подарком в день рождения (плюс напоминания за 7 дней и за 1 день — если шаблоны включены).\n\nОтдельная ручная рассылка не нужна — было бы дублирование. Тексты и включение шаблонов: веб-админка → «Шаблоны авторассылок».`,
+      [{ text: 'Понятно' }],
     );
   };
 
@@ -173,9 +170,9 @@ export const BirthdaysScreen: React.FC<{
               {...ripple('rgba(255,255,255,0.22)')}
               onPress={onSendBroadcast}
             >
-              <Send size={14} color={C.surface} strokeWidth={2.2} />
+              <Info size={14} color={C.surface} strokeWidth={2.2} />
               <Text style={s.btnPrimaryText}>
-                Рассылка всем ({filtered.length})
+                Поздравления уходят автоматически
               </Text>
             </Pressable>
           ) : null
