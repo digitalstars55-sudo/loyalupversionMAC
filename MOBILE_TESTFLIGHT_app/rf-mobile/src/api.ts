@@ -152,7 +152,7 @@ async function tryRefreshToken(): Promise<boolean> {
  * исходный 401 (поведение как раньше). Сетевые ошибки — как в netFetch.
  */
 async function authedFetch(input: string, init?: RequestInit): Promise<Response> {
-  const res = await authedFetch(input, init);
+  const res = await netFetch(input, init);
   if (res.status !== 401 || !_refreshToken) return res;
   const refreshed = await tryRefreshToken();
   if (!refreshed || !_authToken) return res;
