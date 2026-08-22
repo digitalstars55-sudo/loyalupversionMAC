@@ -865,3 +865,105 @@ export interface AutoBroadcastPreview {
   sample_text: string;
   sample_names: string[];
 }
+
+// ════════════════════════════════════════════════════════════════════
+// RFM-КАМПАНИИ — назначение награды ячейке RF-матрицы
+// (паритет с вебом: /api/v1/analytics/rf/campaigns/)
+// ════════════════════════════════════════════════════════════════════
+
+export type RfmRewardType = 'gift' | 'points';
+
+// Позиция каталога наград — GET /api/v1/analytics/rf/reward-catalog/
+export interface RewardCatalogItem {
+  id: number;
+  name: string;
+  tier: string;
+  cost_price: number | null;          // себестоимость, ₽
+  min_order_amount: number | null;    // минимальный чек, ₽
+  default_lifetime_days: number | null;
+  remaining_issues: number | null;    // остаток выдач, null = без лимита
+  branch: string | null;
+}
+
+// Ссылка на страницу выдачи для конкретной точки
+export interface RfmCampaignLink {
+  branch: string;
+  url: string;
+}
+
+// Строка списка кампаний — GET /api/v1/analytics/rf/campaigns/
+export interface RfmCampaign {
+  id: number;
+  name: string;
+  created_at: string;                 // ISO
+  segment_label: string;              // «Спящие VIP» / «R1 · F3»
+  reward_type: RfmRewardType;
+  reward_label: string;               // «Десерт в подарок» / «300 баллов»
+  status: string;                     // processing | completed | partially_failed | cancelled | ...
+  status_label: string;
+  audience_total: number;
+  assigned_count: number;
+  skipped_count: number;
+  failed_count: number;
+  control_count: number;
+  links?: RfmCampaignLink[];          // приходит при создании
+}
+
+// Воронка подарка (только для reward_type='gift')
+export interface RfmGiftFunnel {
+  assigned: number;
+  activated: number;
+  claim_expired: number;
+  waiting: number;
+}
+
+// Возвраты: основная группа vs контрольная
+export interface RfmCampaignReturns {
+  assigned_base: number;
+  assigned_returned: number;
+  assigned_return_rate: number;       // %
+  control_base: number;
+  control_returned: number;
+  control_return_rate: number;        // %
+  assigned_improved: boolean;
+  uplift_pp: number;                  // п.п.
+}
+
+// Детали кампании — GET /api/v1/analytics/rf/campaigns/<id>/
+export interface RfmCampaignDetail extends RfmCampaign {
+  gift_funnel?: RfmGiftFunnel | null;
+  returns?: RfmCampaignReturns | null;
+}
+
+// Тело POST /api/v1/analytics/rf/campaigns/ — контекст ячейки собирается
+// ровно так же, как для sendBroadcast (режим/точки/период/r/f/expected_count).
+export interface RfmCampaignPayload {
+  segment_id: number;
+  mode: Mode;
+  branch_ids: number[];
+  r_score: number;
+  f_score: number;
+  expected_count: number;
+  start?: string;                     // YYYY-MM-DD
+  end?: string;
+  reward_type: RfmRewardType;
+  catalog_item_id?: number;           // reward_type='gift'
+  points_amount?: number;             // reward_type='points'
+  lifetime_days?: number;
+  holdout_percent?: number;           // контрольная группа, дефолт 10
+  name?: string;
+  comment?: string;
+}
+
+export interface RfmCampaignCreateResult {
+  ok: boolean;
+  queued: boolean;
+  campaign: RfmCampaign;
+}
+
+export interface RfmCampaignCancelResult {
+  ok: boolean;
+  revoked: number;
+  refunded: number;
+  kept: number;
+}

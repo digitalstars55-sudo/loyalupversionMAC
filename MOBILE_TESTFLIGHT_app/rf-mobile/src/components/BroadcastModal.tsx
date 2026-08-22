@@ -33,9 +33,13 @@ export const BroadcastModal: React.FC<{
   // Произвольный период экрана аналитики — тот же, что ушёл в fetchRFMatrix.
   // null = дефолтное окно матрицы (30 дней), бэкенд использует такое же.
   dateRange?: { start_date: string; end_date: string } | null;
+  // Аддитивно: если рассылка идёт следом за назначением награды — бэкенд
+  // берёт аудиторию из snapshot кампании (тот же набор гостей, что получил
+  // награду), а не пересобирает её заново.
+  campaignId?: number | null;
   s: S;
   r: Resp;
-}> = ({ visible, onClose, cell, info, mode, branchIds, dateRange, s, r }) => {
+}> = ({ visible, onClose, cell, info, mode, branchIds, dateRange, campaignId, s, r }) => {
   const [text, setText] = useState('');
   const [textB, setTextB] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -189,6 +193,7 @@ export const BroadcastModal: React.FC<{
                 expected_count: cell.count,
                 start: dateRange?.start_date,
                 end: dateRange?.end_date,
+                campaign_id: campaignId ?? undefined,
                 variants: abMode ? [
                   { label: 'A', text: text.trim(), percent: splitA },
                   { label: 'B', text: textB.trim(), percent: 100 - splitA },
@@ -238,6 +243,18 @@ export const BroadcastModal: React.FC<{
               </View>
               <Text style={s.modalSegCount}>{fmtNum(cell.count)} гостей</Text>
             </View>
+
+            {campaignId != null && (
+              <View style={s.modalHint}>
+                <View style={s.modalHintHeader}>
+                  <Lightbulb size={11} color={C.hintInk} strokeWidth={2.5} />
+                  <Text style={s.modalHintTitle}>ПО КАМПАНИИ #{campaignId}</Text>
+                </View>
+                <Text style={s.modalHintText}>
+                  Сообщение уйдёт ровно тем гостям, которым назначена награда.
+                </Text>
+              </View>
+            )}
 
             {info.hint && (
               <View style={s.modalHint}>

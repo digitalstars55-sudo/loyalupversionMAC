@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { Send, Users, Lightbulb } from 'lucide-react-native';
+import { Send, Users, Lightbulb, Gift } from 'lucide-react-native';
 import { C, F } from '../theme';
 import { ripple } from '../platform';
 import { fmtNum, MdText } from '../helpers';
@@ -16,9 +16,12 @@ export const DetailCard: React.FC<{
   info: SegmentInfo;
   onBroadcast: () => void;
   onShowGuests: () => void;
+  // Аддитивно: назначение награды сегменту (RFM-кампания). Без пропа
+  // карточка выглядит ровно как раньше.
+  onReward?: () => void;
   s: S;
   r: Resp;
-}> = ({ cell, info, onBroadcast, onShowGuests, s, r }) => (
+}> = ({ cell, info, onBroadcast, onShowGuests, onReward, s, r }) => (
   <View style={s.detail}>
     <View style={s.detailEyebrow}>
       <Text style={s.detailEmoji}>{info.emoji}</Text>
@@ -61,12 +64,25 @@ export const DetailCard: React.FC<{
         <Send size={14} color={C.surface} strokeWidth={2} />
         <Text style={s.btnPrimaryText}>Рассылка</Text>
       </Pressable>
-      {cell.count > 0 && (
+      {!!onReward && (
+        <Pressable
+          style={[s.btn, s.btnAi, cell.count <= 0 && { opacity: 0.5 }]}
+          {...ripple()}
+          onPress={onReward}
+          disabled={cell.count <= 0}
+        >
+          <Gift size={14} color={C.purpleDeep} strokeWidth={2} />
+          <Text style={s.btnAiText}>🎁 Награда</Text>
+        </Pressable>
+      )}
+    </View>
+    {cell.count > 0 && (
+      <View style={[s.actions, { marginTop: 8 }]}>
         <Pressable style={[s.btn, s.btnSecondary]} {...ripple()} onPress={onShowGuests}>
           <Users size={14} color={C.ink} strokeWidth={2} />
           <Text style={s.btnSecondaryText}>Гости ({fmtNum(cell.count)})</Text>
         </Pressable>
-      )}
-    </View>
+      </View>
+    )}
   </View>
 );

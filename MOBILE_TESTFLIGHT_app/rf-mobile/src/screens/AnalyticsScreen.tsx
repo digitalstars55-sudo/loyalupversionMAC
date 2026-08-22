@@ -26,6 +26,8 @@ import { BentoSection } from '../components/Bento';
 import { DetailCard } from '../components/DetailCard';
 import { LegendSheet } from '../components/LegendSheet';
 import { BroadcastModal } from '../components/BroadcastModal';
+import { RewardModal } from '../components/RewardModal';
+import { RfmCampaignsPanel, RfmCampaignDetailModal } from '../components/RfmCampaignsPanel';
 import { GuestListModal } from '../components/GuestListModal';
 import { DateRangeModal, type DateRange } from '../components/DateRangeModal';
 import { MigrationsModal } from '../components/MigrationsModal';
@@ -86,6 +88,13 @@ export function AnalyticsScreen({
   const [filterChip, setFilterChip] = useState<FilterChipKey>('all');
 
   const [broadcastOpen, setBroadcastOpen] = useState(false);
+  // Кампания, по snapshot которой идёт рассылка (проставляется после
+  // назначения награды; обычная рассылка по ячейке — null).
+  const [broadcastCampaignId, setBroadcastCampaignId] = useState<number | null>(null);
+  const [rewardOpen, setRewardOpen] = useState(false);
+  // Меняется после создания/отмены кампании — панель истории перечитывает список.
+  const [campaignsToken, setCampaignsToken] = useState(0);
+  const [campaignDetailId, setCampaignDetailId] = useState<number | null>(null);
   const [guestsOpen, setGuestsOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [migrationsOpen, setMigrationsOpen] = useState(false);
@@ -160,6 +169,13 @@ export function AnalyticsScreen({
   const onSelectKey = useCallback((key: string) => {
     haptic('light');
     setSelectedKey(key);
+  }, []);
+
+  // Обычная рассылка по ячейке — без кампании. Рассылка после назначения
+  // награды приходит сюда с id кампании (аудитория = snapshot кампании).
+  const openBroadcast = useCallback((campaignId: number | null = null) => {
+    setBroadcastCampaignId(campaignId);
+    setBroadcastOpen(true);
   }, []);
 
   const onShowGuests = useCallback(async () => {
@@ -447,7 +463,7 @@ export function AnalyticsScreen({
             cells={filteredCells}
             selectedKey={selectedKey}
             onSelect={onSelectKey}
-            onBroadcast={(key) => { onSelectKey(key); setBroadcastOpen(true); }}
+            onBroadcast={(key) => { onSelectKey(key); openBroadcast(null); }}
             s={s}
           />
         )}
@@ -496,11 +512,19 @@ export function AnalyticsScreen({
           <DetailCard
             cell={selected.cell}
             info={selected.info}
-            onBroadcast={() => { haptic('medium'); setBroadcastOpen(true); }}
+            onBroadcast={() => { haptic('medium'); openBroadcast(null); }}
+            onReward={() => { haptic('medium'); setRewardOpen(true); }}
             onShowGuests={onShowGuests}
             s={s} r={r}
           />
         )}
+
+        {/* История RFM-кампаний — раскрывающийся блок */}
+        <RfmCampaignsPanel
+          reloadToken={campaignsToken}
+          onOpenDetail={setCampaignDetailId}
+          s={s}
+        />
 
         {/* Branch ratings — рейтинг по точкам из APP-отзывов */}
         <Pressable
@@ -603,7 +627,7 @@ export function AnalyticsScreen({
       {/* Modals */}
       <BroadcastModal
         visible={broadcastOpen}
-        onClose={() => setBroadcastOpen(false)}
+        onClose={() => { setBroadcastOpen(false); setBroadcastCampaignId(null); }}
         cell={selected?.cell ?? null}
         info={selected?.info ?? null}
         mode={mode}
@@ -611,6 +635,39 @@ export function AnalyticsScreen({
         dateRange={customRange
           ? { start_date: customRange.start_date, end_date: customRange.end_date }
           : null}
+        campaignId={broadcastCampaignId}
+        s={s} r={r}
+      />
+
+      {/* Награда сегменту — контекст ячейки собирается ровно как для рассылки */}
+      <RewardModal
+        visible={rewardOpen}
+        onClose={() => setRewardOpen(false)}
+        cell={selected?.cell ?? null}
+        info={selected?.info ?? null}
+        mode={mode}
+        branchIds={branchId === 0 ? [] : [branchId]}
+        dateRange={customRange
+          ? { start_date: customRange.start_date, end_date: customRange.end_date }
+          : null}
+        onCreated={() => setCampaignsToken(t => t + 1)}
+        onGoToBroadcast={(campaignId) => {
+          // Даём шторке награды доиграть уход — два RN <Modal> одновременно
+          // на iOS конфликтуют и второй может не показаться.
+          setRewardOpen(false);
+          setTimeout(() => openBroadcast(campaignId), 300);
+        }}
+        s={s} r={r}
+      />
+
+      {/* Детали RFM-кампании из истории */}
+      <RfmCampaignDetailModal
+        campaignId={campaignDetailId}
+        onClose={() => setCampaignDetailId(null)}
+        onCancelled={() => {
+          setCampaignDetailId(null);
+          setCampaignsToken(t => t + 1);
+        }}
         s={s} r={r}
       />
 

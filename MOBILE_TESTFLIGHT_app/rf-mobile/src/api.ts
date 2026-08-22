@@ -9,6 +9,8 @@ import type {
   SearchResults, SearchHit, GuestBirthday, GenderFilter,
   GiftAnalytic, QuestAnalytic, EngagementSummary,
   ContactPointsResponse, CrossOverviewReviewsResponse,
+  RewardCatalogItem, RfmCampaign, RfmCampaignDetail, RfmCampaignPayload,
+  RfmCampaignCreateResult, RfmCampaignCancelResult,
 } from './types';
 import {
   MOCK, MOCK_DELIVERY, MOCK_GUESTS, MOCK_REVIEWS, DEFAULT_AUTO_REPLY_SETTINGS,
@@ -783,6 +785,9 @@ export async function sendBroadcast(p: {
   expected_count?: number;
   start?: string; // ISO YYYY-MM-DD — произвольный период экрана аналитики
   end?: string;
+  // Аддитивно: если рассылка идёт следом за назначением награды, бэкенд
+  // берёт аудиторию из snapshot кампании, а не пересобирает её заново.
+  campaign_id?: number;
 }): Promise<{ total_sent: number; variants?: { label: 'A' | 'B'; sent_count: number }[] }> {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 1200));
@@ -807,6 +812,7 @@ export async function sendBroadcast(p: {
   if (p.r_score != null) fd.append('r_score', String(p.r_score));
   if (p.f_score != null) fd.append('f_score', String(p.f_score));
   if (p.expected_count != null) fd.append('expected_count', String(p.expected_count));
+  if (p.campaign_id != null) fd.append('campaign_id', String(p.campaign_id));
   if (p.start && p.end) {
     fd.append('start', p.start);
     fd.append('end', p.end);
@@ -828,6 +834,111 @@ export async function sendBroadcast(p: {
   const data = await res.json();
   if (data.error) throw new Error(data.error);
   return { total_sent: data.total_sent ?? 0, variants: data.variants };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// RFM-КАМПАНИИ — назначение награды ячейке матрицы (паритет с вебом)
+// ════════════════════════════════════════════════════════════════════
+//
+// Бэкенд отдаёт ошибки как {"error": "..."} со статусами 400/403/404/409.
+// 409 = «аудитория изменилась» — экран надо обновить и собрать ячейку заново.
+// Общий разбор ответа, чтобы текст ошибки долетал до пользователя как есть.
+async function _rfmJson(res: Response, fallback: string): Promise<any> {
+  const data = await res.json().catch(() => ({} as any));
+  if (!res.ok || data?.error) {
+    throw new Error(data?.error || data?.detail || `${fallback}: ${res.status}`);
+  }
+  return data;
+}
+
+// Каталог наград — позиции, которые можно назначить сегменту.
+export async function fetchRewardCatalog(): Promise<RewardCatalogItem[]> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return []; }
+  const res = await authedFetch(new URL('/api/v1/analytics/rf/reward-catalog/', getApiBase()).toString(), {
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  const data = await _rfmJson(res, 'Reward catalog fetch failed');
+  return data?.items ?? [];
+}
+
+// Создание кампании. Начисление идёт в фоне (queued), ответ приходит сразу
+// со снимком аудитории и ссылками на страницы выдачи по точкам.
+export async function createRfmCampaign(p: RfmCampaignPayload): Promise<RfmCampaignCreateResult> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 900));
+    const control = Math.round(p.expected_count * ((p.holdout_percent ?? 10) / 100));
+    return {
+      ok: true, queued: true,
+      campaign: {
+        id: Math.floor(Math.random() * 900) + 100,
+        name: p.name ?? 'RFM-кампания',
+        created_at: new Date().toISOString(),
+        segment_label: `R${p.r_score} · F${p.f_score}`,
+        reward_type: p.reward_type,
+        reward_label: p.reward_type === 'points' ? `${p.points_amount ?? 0} баллов` : 'Подарок',
+        status: 'processing', status_label: 'Начисляется',
+        audience_total: p.expected_count,
+        assigned_count: 0, skipped_count: 0, failed_count: 0,
+        control_count: control,
+        links: [],
+      },
+    };
+  }
+  const body: Record<string, any> = {
+    segment_id: p.segment_id,
+    mode: p.mode,
+    branch_ids: p.branch_ids.filter(id => id !== 0).join(','),
+    r_score: p.r_score,
+    f_score: p.f_score,
+    expected_count: p.expected_count,
+    reward_type: p.reward_type,
+  };
+  if (p.start && p.end) { body.start = p.start; body.end = p.end; }
+  if (p.catalog_item_id != null) body.catalog_item_id = p.catalog_item_id;
+  if (p.points_amount != null) body.points_amount = p.points_amount;
+  if (p.lifetime_days != null) body.lifetime_days = p.lifetime_days;
+  if (p.holdout_percent != null) body.holdout_percent = p.holdout_percent;
+  if (p.name) body.name = p.name;
+  if (p.comment) body.comment = p.comment;
+
+  const res = await authedFetch(new URL('/api/v1/analytics/rf/campaigns/', getApiBase()).toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+  const data = await _rfmJson(res, 'Campaign create failed');
+  return { ok: data?.ok ?? true, queued: data?.queued ?? false, campaign: data?.campaign };
+}
+
+// История кампаний.
+export async function fetchRfmCampaigns(): Promise<RfmCampaign[]> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 200)); return []; }
+  const res = await authedFetch(new URL('/api/v1/analytics/rf/campaigns/', getApiBase()).toString(), {
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  const data = await _rfmJson(res, 'Campaigns fetch failed');
+  return data?.campaigns ?? [];
+}
+
+// Детали одной кампании: счётчики + воронка подарков + возвраты vs контроль.
+export async function fetchRfmCampaignDetail(id: number): Promise<RfmCampaignDetail> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 250)); return {} as RfmCampaignDetail; }
+  const res = await authedFetch(new URL(`/api/v1/analytics/rf/campaigns/${id}/`, getApiBase()).toString(), {
+    headers: { Accept: 'application/json', ...authHeaders() },
+  });
+  return await _rfmJson(res, 'Campaign detail fetch failed');
+}
+
+// Отмена: неактивированные подарки отзываются, баллы откатываются в пределах остатка.
+export async function cancelRfmCampaign(id: number): Promise<RfmCampaignCancelResult> {
+  if (USE_MOCK) { await new Promise(r => setTimeout(r, 500)); return { ok: true, revoked: 0, refunded: 0, kept: 0 }; }
+  const res = await authedFetch(new URL(`/api/v1/analytics/rf/campaigns/${id}/cancel/`, getApiBase()).toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...authHeaders() },
+    body: JSON.stringify({}),
+  });
+  const data = await _rfmJson(res, 'Campaign cancel failed');
+  return { ok: data?.ok ?? true, revoked: data?.revoked ?? 0, refunded: data?.refunded ?? 0, kept: data?.kept ?? 0 };
 }
 
 // ════════════════════════════════════════════════════════════════════
