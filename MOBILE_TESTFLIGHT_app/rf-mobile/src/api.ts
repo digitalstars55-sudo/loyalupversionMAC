@@ -1,6 +1,6 @@
 import type {
   AutoBroadcastRule, AutoBroadcastPreview,
-  Mode, RFMatrixResponse, Guest, Review, AutoReplySettings,
+  Mode, RFMatrixResponse, Guest, Review, AutoReplySettings, AutoSendStatus,
   ChatMessage, ChatManager, Campaign, RFMigration, RFThresholds, RFBranch,
   Profile, Staff, FeatureChoice, SubscriptionStatus,
   TestimonialMessage, GuestDetail, GeneralStats, LoyaltyReport, CrossOverview,
@@ -1050,6 +1050,27 @@ export async function rejectDraft(p: { review_id: number }): Promise<void> {
     headers: { ...authHeaders() },
   });
   if (!res.ok) throw new Error(`Reject draft failed: ${res.status}`);
+}
+
+// Отменить запланированный автоответ ИИ (пока не истекло окно отмены).
+// 409 = ИИ уже успел ответить: бросаем текст detail с бэка и помечаем
+// ошибку .status = 409, чтобы карточка обновила статус на 'sent'.
+export async function cancelAutoSend(reviewId: number): Promise<{ ok: boolean; auto_send_status: AutoSendStatus }> {
+  if (USE_MOCK) {
+    await new Promise(r => setTimeout(r, 300));
+    return { ok: true, auto_send_status: 'cancelled' };
+  }
+  const res = await authedFetch(new URL(`/api/v1/mobile/reviews/${reviewId}/cancel-auto-send/`, getApiBase()).toString(), {
+    method: 'POST',
+    headers: { ...authHeaders() },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({} as any));
+    const err: any = new Error(body?.detail ?? `Cancel auto-send failed: ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return await res.json().catch(() => ({ ok: true, auto_send_status: 'cancelled' as AutoSendStatus }));
 }
 
 // ════════════════════════════════════════════════════════════════════

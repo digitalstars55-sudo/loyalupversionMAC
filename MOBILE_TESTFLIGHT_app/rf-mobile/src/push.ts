@@ -23,7 +23,9 @@ export type PushType =
   | 'broadcast_done'     // рассылка отправлена
   | 'daily_code_missing' // код дня не сгенерирован
   | 'daily_codes'        // утренняя сводка кодов дня
-  | 'guest_birthday';    // у постоянного гостя завтра ДР
+  | 'guest_birthday'     // у постоянного гостя завтра ДР
+  | 'auto_reply_pending' // ИИ запланировал автоответ на позитивный отзыв (окно отмены)
+  | 'auto_reply_sent';   // ИИ отправил автоответ гостю
 
 export interface PushPayload {
   type: PushType;
@@ -33,6 +35,7 @@ export interface PushPayload {
   staff_id?: number;
   guest_vk_id?: string;
   branch_id?: number;
+  send_at?: string;      // ISO — когда ИИ отправит автоответ (auto_reply_pending)
   // любые доп. поля для будущего
   [k: string]: any;
 }
@@ -164,6 +167,8 @@ export const simulateLocalPush = async (payload: PushPayload): Promise<void> => 
     broadcast_done:     '📨 Рассылка отправлена',
     daily_code_missing: '⚠️ Нет кода дня',
     guest_birthday:     '🎂 Завтра ДР гостя',
+    auto_reply_pending: '🤖 Автоответ ИИ',
+    auto_reply_sent:    '🤖 ИИ ответил',
   };
   const bodies: Record<PushType, string> = {
     review_new:         'Дмитрий оставил негативный отзыв в Кафе на Набережной',
@@ -175,6 +180,8 @@ export const simulateLocalPush = async (payload: PushPayload): Promise<void> => 
     broadcast_done:     'Доставлено 138 из 145 гостей сегмента VIP риск',
     daily_code_missing: 'На точке Кофейня нет авто-кода. Откройте «Коды дня»',
     guest_birthday:     'Дмитрий Соколов — постоянный гость, ДР завтра. Подготовьте подарок',
+    auto_reply_pending: 'ИИ ответит гостю в 14:35. Откройте отзыв, если хотите отменить',
+    auto_reply_sent:    'ИИ отправил ответ на позитивный отзыв',
   };
   // Подбираем канал
   const channelId =

@@ -112,6 +112,8 @@ export interface TestimonialMessage {
   table_number?: number;     // если оставили со стола
   // только для ADMIN_REPLY: кто отправил
   admin_name?: string;
+  // Ответ отправил ИИ автоматически (автоотправка позитивных). source остаётся ADMIN_REPLY.
+  is_ai_generated?: boolean;
   attachments?: ReviewAttachment[];  // фото из ВК
   // LU-40: контекст «на что ответил гость» — текст+дата предыдущего сообщения
   // в треде (обычно авто-опрос «Понравилось?»). Показываем как цитату над бабблом.
@@ -156,7 +158,16 @@ export interface Review {
   // Ссылки на отзыв-площадки точки (для кнопки «Вставить ссылки» на позитивных)
   review_link_yandex?: string;
   review_link_2gis?: string;
+  // ── Автоотправка ответа ИИ (позитивные отзывы) ──
+  // Все поля опциональны: старый бэк их не отдаёт — UI работает как раньше.
+  auto_send_status?: AutoSendStatus;
+  auto_send_at?: string | null;   // ISO: scheduled — плановое время, sent — фактическое
+  auto_send_reason?: string;      // машинный код причины (см. AUTO_SEND_REASONS в UI)
+  ai_needs_human?: boolean;       // в отзыве есть вопрос — автоответ не планируется
 }
+
+// Статус автоотправки ответа ИИ. '' — автоотправка к отзыву не применялась.
+export type AutoSendStatus = '' | 'scheduled' | 'sent' | 'cancelled' | 'skipped' | 'failed';
 
 export type ReviewFilterKey = 'all' | 'negative' | 'pending' | 'replied' | 'app' | 'draft';
 
@@ -182,7 +193,20 @@ export interface AutoReplySettings {
   reminder_minutes: ReminderMinutes;
   // Тон AI
   ai_tone: AiTone;
+
+  // ── Автоотправка позитивных (ИИ сам отвечает через окно отмены) ──
+  // Опциональны: старый бэк их не отдаёт — экран рисуется на безопасных дефолтах.
+  auto_send_enabled?: boolean;
+  auto_send_delay_minutes?: AutoSendDelayMinutes;   // окно отмены
+  auto_send_attach_links?: boolean;                 // inline-кнопки Яндекс Карты / 2ГИС
+  auto_send_links_text?: string;                    // фраза перед кнопками, ≤200
+  auto_send_daily_limit?: number;                   // 1..500
+  // branch_id → on/off. Ключа нет = включено (как branch_enabled).
+  auto_send_branch_enabled?: Record<number, boolean>;
 }
+
+// Окно отмены автоответа, минуты
+export type AutoSendDelayMinutes = 5 | 15 | 30 | 60;
 
 // ════════════════════════════════════════════════════════════════════
 // TAB NAVIGATION

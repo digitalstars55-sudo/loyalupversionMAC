@@ -140,7 +140,14 @@ export const CrossReviewReplyScreen: React.FC<{
             <Bubble admin={false} text={target.text} time={target.created_at} />
           ) : (
             messages.map((m, i) => (
-              <Bubble key={`${m.id}_${i}`} admin={m.source === 'ADMIN_REPLY'} text={m.text} time={m.created_at} who={m.admin_name} />
+              <Bubble
+                key={`${m.id}_${i}`}
+                admin={m.source === 'ADMIN_REPLY'}
+                text={m.text}
+                time={m.created_at}
+                who={m.admin_name}
+                ai={m.is_ai_generated}
+              />
             ))
           )}
         </ScrollView>
@@ -195,13 +202,14 @@ export const CrossReviewReplyScreen: React.FC<{
   );
 };
 
-const Bubble: React.FC<{ admin: boolean; text: string; time?: string; who?: string }> = ({ admin, text, time, who }) => (
+// ai = ответ отправил ИИ сам (автоотправка позитивных) — подпись «🤖 ИИ» вместо имени
+const Bubble: React.FC<{ admin: boolean; text: string; time?: string; who?: string; ai?: boolean }> = ({ admin, text, time, who, ai }) => (
   <View style={{ alignSelf: admin ? 'flex-end' : 'flex-start', maxWidth: '88%' }}>
     <View style={{ backgroundColor: admin ? C.purple : C.surface, borderWidth: admin ? 0 : 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 }}>
       <Text style={{ fontSize: 14, lineHeight: 19, color: admin ? '#fff' : C.ink2 }}>{text}</Text>
     </View>
     <Text style={{ fontSize: 10, color: C.ink4, marginTop: 3, alignSelf: admin ? 'flex-end' : 'flex-start' }}>
-      {admin ? (who ? `${who} · ` : 'Вы · ') : ''}{time ? relativeTime(time) : ''}
+      {admin ? (ai ? '🤖 ИИ · ' : who ? `${who} · ` : 'Вы · ') : ''}{time ? relativeTime(time) : ''}
     </Text>
   </View>
 );

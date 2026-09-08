@@ -523,6 +523,8 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin, featu
           break;
         case 'review_new':
         case 'draft_ready':
+        case 'auto_reply_pending':
+        case 'auto_reply_sent':
           setTab('reviews');
           if (payload.review_id) setPushSelectedReviewId(payload.review_id);
           break;
@@ -648,7 +650,8 @@ function Root({ onLogout, onSwitchTenant, currentTenantName, isSuperadmin, featu
           onTap={(item) => {
             setOverlay(null);
             switch (item.type) {
-              case 'review_new': case 'draft_ready': setTab('reviews'); break;
+              case 'review_new': case 'draft_ready':
+              case 'auto_reply_pending': case 'auto_reply_sent': setTab('reviews'); break;
               case 'chat_message': setTab('chat'); break;
               case 'report_ready': setOverlay('reports'); break;
               case 'broadcast_done': setTab('more'); setPendingOpenMoreScreen('campaigns'); break;

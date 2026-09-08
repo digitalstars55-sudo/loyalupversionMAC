@@ -8,7 +8,7 @@ import { SheetModal } from './SheetModal';
 const SCREEN_H = Dimensions.get('window').height;
 import {
   X as XIcon, Send, Sparkles, Check, RefreshCw, Archive, AlertTriangle,
-  Phone as PhoneIcon, Hash, Eye,
+  Phone as PhoneIcon, Hash, Eye, Bot, Clock,
 } from 'lucide-react-native';
 import { C } from '../theme';
 import { haptic, ripple } from '../platform';
@@ -16,10 +16,59 @@ import {
   sentimentMeta, sourceLabel, avatarColor, initials, relativeTime,
   chatTime, dayKey, dayLabel,
 } from '../helpers';
-import { fetchReviewMessages, appendReviewMessage, markReviewResolved, regenerateDraft, rejectDraft } from '../api';
-import type { Review, TestimonialMessage } from '../types';
+import { fetchReviewMessages, appendReviewMessage, markReviewResolved, regenerateDraft, rejectDraft, cancelAutoSend } from '../api';
+import type { Review, TestimonialMessage, AutoSendStatus } from '../types';
 import type { Resp } from '../responsive';
 import type { S } from '../styles';
+
+// ── Автоотправка ИИ: человекочитаемые причины «почему не отправлено» ──
+const AUTO_SEND_REASONS: Record<string, string> = {
+  manual_reply:      'вы ответили сами',
+  rejected_draft:    'черновик отклонён',
+  needs_human:       'в отзыве есть вопрос — нужен человек',
+  numeric_only:      'оценка без текста',
+  no_vk_sender:      'гость не из ВК',
+  daily_limit:       'исчерпан лимит на сегодня',
+  branch_disabled:   'для точки выключено',
+  config_off:        'автоотправка выключена',
+  draft_changed:     'черновик изменился',
+  cancelled_by_user: 'отменено вручную',
+};
+
+export const autoSendReasonText = (code?: string): string => {
+  if (!code) return 'причина не указана';
+  if (code.startsWith('vk_error')) {
+    const tail = code.slice('vk_error'.length).replace(/^[:\s]+/, '');
+    return tail ? `ошибка ВК: ${tail}` : 'ошибка ВК';
+  }
+  return AUTO_SEND_REASONS[code] ?? code;
+};
+
+const _p2 = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+const _sameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+// «в 14:35» / «завтра в 14:35» / «12.09 в 14:35» — для запланированной отправки
+export const autoSendWhen = (iso?: string | null): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const hhmm = `${_p2(d.getHours())}:${_p2(d.getMinutes())}`;
+  const now = new Date();
+  if (_sameDay(d, now)) return `в ${hhmm}`;
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (_sameDay(d, tomorrow)) return `завтра в ${hhmm}`;
+  return `${_p2(d.getDate())}.${_p2(d.getMonth() + 1)} в ${hhmm}`;
+};
+
+// «12.09 14:35» — для факта отправки
+export const autoSendStamp = (iso?: string | null): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return `${_p2(d.getDate())}.${_p2(d.getMonth() + 1)} ${_p2(d.getHours())}:${_p2(d.getMinutes())}`;
+};
 
 // ════════════════════════════════════════════════════════════════════
 // REVIEW DETAIL MODAL — открытый отзыв = переписка с гостем
@@ -40,6 +89,9 @@ export const ReviewDetailModal: React.FC<{
   const [resolving, setResolving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [draftRejected, setDraftRejected] = useState(false);
+  // Локальный статус автоотправки — чтобы баннер обновлялся сразу после отмены
+  const [autoStatus, setAutoStatus] = useState<AutoSendStatus>('');
+  const [cancellingAuto, setCancellingAuto] = useState(false);
   const listRef = useRef<FlatList<TestimonialMessage>>(null);
 
   // Загружаем thread при открытии
@@ -49,6 +101,7 @@ export const ReviewDetailModal: React.FC<{
     setMessages([]);
     setReplyText(review.has_draft && !draftRejected ? (review.draft_text ?? '') : '');
     setDraftRejected(false);
+    setAutoStatus(review.auto_send_status ?? '');
     fetchReviewMessages({ review_id: review.id })
       .then(setMessages)
       .catch(() => {})
@@ -79,7 +132,7 @@ export const ReviewDetailModal: React.FC<{
   const hasAnyAdminMsg = messages.some(m => m.source === 'ADMIN_REPLY');
   const showDraftBanner = canReply && !!review.has_draft && !draftRejected && !hasAnyAdminMsg;
 
-  const onSend = async () => {
+  const doSend = async () => {
     if (!replyText.trim()) return;
     haptic('medium');
     setSending(true);
@@ -89,12 +142,17 @@ export const ReviewDetailModal: React.FC<{
       // Добавляем в локальный thread
       setMessages(prev => [...prev, sent]);
       // Обновляем родительский Review (стало replied=true, draft очистился)
+      // Ручной ответ отменяет запланированный автоответ (бэк делает то же самое)
+      const autoAfter: AutoSendStatus = autoStatus === 'scheduled' ? 'cancelled' : autoStatus;
+      if (autoStatus === 'scheduled') setAutoStatus('cancelled');
       onUpdate({
         ...review,
         is_replied: true, has_unread: false,
         has_draft: false, draft_text: undefined,
         last_message_at: sent.created_at,
         messages: [...(review.messages ?? messages), sent],
+        auto_send_status: autoAfter,
+        ...(autoStatus === 'scheduled' ? { auto_send_reason: 'manual_reply' } : {}),
       });
       setReplyText('');
       // Если VK reply не прошёл (гость заблокировал группу или не подписан) —
@@ -111,6 +169,45 @@ export const ReviewDetailModal: React.FC<{
       Alert.alert('Ошибка', e?.message ?? 'Не удалось отправить ответ');
     } finally {
       setSending(false);
+    }
+  };
+
+  // Если ИИ уже запланировал автоответ — спрашиваем, отправлять ли свой вместо него.
+  // Бэк сам снимет запланированную отправку при ручном ответе.
+  const onSend = () => {
+    if (!replyText.trim()) return;
+    if (autoStatus === 'scheduled') {
+      Alert.alert(
+        'Запланирован автоответ ИИ',
+        'Отправить ваш ответ вместо него?',
+        [
+          { text: 'Отмена', style: 'cancel' },
+          { text: 'Да', onPress: () => { doSend(); } },
+        ],
+      );
+      return;
+    }
+    doSend();
+  };
+
+  const onCancelAutoSend = async () => {
+    haptic('warning');
+    setCancellingAuto(true);
+    try {
+      await cancelAutoSend(review.id);
+      haptic('success');
+      setAutoStatus('cancelled');
+      onUpdate({ ...review, auto_send_status: 'cancelled', auto_send_reason: 'cancelled_by_user' });
+    } catch (e: any) {
+      haptic('error');
+      if (e?.status === 409) {
+        // ИИ успел ответить, пока открыт экран — синхронизируем статус
+        setAutoStatus('sent');
+        onUpdate({ ...review, auto_send_status: 'sent' });
+      }
+      Alert.alert('Не удалось отменить', e?.message ?? 'Попробуйте ещё раз');
+    } finally {
+      setCancellingAuto(false);
     }
   };
 
@@ -302,6 +399,63 @@ export const ReviewDetailModal: React.FC<{
 
           {/* Reply input + actions */}
           <View style={[s.rvDetailFooter, r.isTiny && { gap: 8 }]}>
+            {/* Автоотправка ИИ — статус над полем ответа */}
+            {autoStatus === 'scheduled' && (
+              <View style={s.rvDetailDraftBanner}>
+                <View style={s.rvDetailDraftIcon}>
+                  <Clock size={13} color={C.purpleDeep} strokeWidth={2.2} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.rvDetailDraftSub, { color: C.purpleDeep, fontSize: 12.5, marginTop: 0 }]}>
+                    🤖 ИИ ответит автоматически {autoSendWhen(review.auto_send_at)}
+                  </Text>
+                </View>
+                <Pressable
+                  style={{
+                    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
+                    backgroundColor: C.surface, borderWidth: 1, borderColor: C.purpleLine,
+                    opacity: cancellingAuto ? 0.5 : 1,
+                  }}
+                  {...ripple()}
+                  onPress={onCancelAutoSend}
+                  disabled={cancellingAuto}
+                >
+                  {cancellingAuto
+                    ? <ActivityIndicator size="small" color={C.purpleDeep} />
+                    : <Text style={{ fontSize: 11.5, fontWeight: '700', color: C.purpleDeep }}>Отменить автоответ</Text>
+                  }
+                </Pressable>
+              </View>
+            )}
+
+            {autoStatus === 'cancelled' && (
+              <View style={[s.rvDetailDraftBanner, { backgroundColor: C.paper, borderColor: C.line }]}>
+                <View style={s.rvDetailDraftIcon}>
+                  <Bot size={13} color={C.ink3} strokeWidth={2.2} />
+                </View>
+                <Text style={[s.rvDetailDraftSub, { flex: 1, fontSize: 12.5, marginTop: 0 }]}>
+                  Автоответ отменён — ответьте вручную
+                </Text>
+              </View>
+            )}
+
+            {autoStatus === 'sent' && (
+              <View style={[s.rvDetailDraftBanner, { backgroundColor: C.goodSoft, borderColor: C.goodSoft }]}>
+                <View style={s.rvDetailDraftIcon}>
+                  <Bot size={13} color={C.good} strokeWidth={2.2} />
+                </View>
+                <Text style={[s.rvDetailDraftSub, { flex: 1, fontSize: 12.5, marginTop: 0, color: C.good }]}>
+                  🤖 Ответил ИИ · {autoSendStamp(review.auto_send_at)}
+                </Text>
+              </View>
+            )}
+
+            {(autoStatus === 'skipped' || autoStatus === 'failed') && (
+              <Text style={[s.rvDetailDraftSub, { marginBottom: 6 }]}>
+                Автоответ не отправлен: {autoSendReasonText(review.auto_send_reason)}
+              </Text>
+            )}
+
             {showDraftBanner && (
               <View style={s.rvDetailDraftBanner}>
                 <View style={s.rvDetailDraftIcon}>
@@ -411,16 +565,18 @@ export const ReviewDetailModal: React.FC<{
 // ─────────────────────────────────────────────
 const ThreadBubble: React.FC<{ msg: TestimonialMessage; s: S }> = ({ msg, s }) => {
   const isAdmin = msg.source === 'ADMIN_REPLY';
+  // Ответ, который ИИ отправил сам (автоотправка позитивных) — помечаем отдельно.
+  const isAi = isAdmin && !!msg.is_ai_generated;
   // Эмодзи + текстовая метка источника. Делает быстрый scan треда легче:
-  // 📱 = гость из миниаппа, 💬 = гость из ВК-сообщества, 💼 = ответ менеджера.
-  const sourceIcon = msg.source === 'APP' ? '📱' : msg.source === 'VK_MESSAGE' ? '💬' : '💼';
-  const sourceLbl  = msg.source === 'APP' ? 'из приложения' : msg.source === 'VK_MESSAGE' ? 'из ВК' : 'администратор';
+  // 📱 = гость из миниаппа, 💬 = гость из ВК-сообщества, 💼 = ответ менеджера, 🤖 = ответ ИИ.
+  const sourceIcon = isAi ? '🤖' : msg.source === 'APP' ? '📱' : msg.source === 'VK_MESSAGE' ? '💬' : '💼';
+  const sourceLbl  = isAi ? 'ИИ' : msg.source === 'APP' ? 'из приложения' : msg.source === 'VK_MESSAGE' ? 'из ВК' : 'администратор';
 
   return (
     <View style={isAdmin ? s.rvBubbleRowAdmin : s.rvBubbleRowGuest}>
       <View style={[s.rvBubble, isAdmin ? s.rvBubbleAdmin : s.rvBubbleGuest]}>
-        {isAdmin && msg.admin_name && (
-          <Text style={s.rvBubbleAdminName}>{msg.admin_name}</Text>
+        {isAdmin && (isAi || !!msg.admin_name) && (
+          <Text style={s.rvBubbleAdminName}>{isAi ? '🤖 ИИ' : msg.admin_name}</Text>
         )}
         {/* LU-40: контекст «на что ответил гость» — цитата над текстом.
             Обычно это авто-опрос «Понравилось?», который сам по себе в треде

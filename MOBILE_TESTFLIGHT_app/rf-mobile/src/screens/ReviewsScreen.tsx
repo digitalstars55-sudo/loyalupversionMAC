@@ -29,6 +29,15 @@ import { Calendar } from 'lucide-react-native';
 // REVIEWS SCREEN — лента отзывов с мульти-фильтрами и сортировкой
 // ════════════════════════════════════════════════════════════════════
 
+// «в 14:35» для бейджа запланированного автоответа ИИ
+const autoBadgeTime = (iso?: string | null): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const p = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  return `в ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
 // Быстрые «pre-set» чипы — частые комбинации фильтров одной кнопкой
 type QuickPreset = 'all' | 'urgent' | 'unanswered' | 'replied' | 'drafts' | 'positive';
 
@@ -814,7 +823,17 @@ const ReviewCard: React.FC<{
         </View>
 
         <Text style={s.rvCardText} numberOfLines={2}>{rev.text}</Text>
-        {rev.has_draft && !rev.is_replied ? (
+        {rev.auto_send_status === 'scheduled' ? (
+          <View style={s.rvCardDraft}>
+            <Text style={{ fontSize: 11 }}>🤖</Text>
+            <Text style={s.rvCardDraftText}>авто {autoBadgeTime(rev.auto_send_at)}</Text>
+          </View>
+        ) : rev.auto_send_status === 'sent' ? (
+          <View style={[s.rvCardDraft, { backgroundColor: C.goodSoft }]}>
+            <Text style={{ fontSize: 11 }}>🤖</Text>
+            <Text style={[s.rvCardDraftText, { color: C.good }]}>ИИ ответил</Text>
+          </View>
+        ) : rev.has_draft && !rev.is_replied ? (
           <View style={s.rvCardDraft}>
             <Text style={{ fontSize: 11 }}>🤖</Text>
             <Text style={s.rvCardDraftText}>AI-черновик готов</Text>

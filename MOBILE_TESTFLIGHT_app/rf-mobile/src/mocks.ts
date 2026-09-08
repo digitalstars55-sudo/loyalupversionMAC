@@ -432,6 +432,13 @@ export const DEFAULT_AUTO_REPLY_SETTINGS: AutoReplySettings = {
   branch_enabled: { 1: true, 2: true, 3: true, 4: true, 5: true },
   reminder_minutes: 60,
   ai_tone: 'friendly',
+  // Автоотправка позитивных — по умолчанию выключена (включает владелец руками)
+  auto_send_enabled: false,
+  auto_send_delay_minutes: 15,
+  auto_send_attach_links: true,
+  auto_send_links_text: 'Будем рады вашему отзыву на картах:',
+  auto_send_daily_limit: 50,
+  auto_send_branch_enabled: {},
 };
 
 export const REMINDER_OPTIONS: { value: import('./types').ReminderMinutes; label: string }[] = [
@@ -439,6 +446,14 @@ export const REMINDER_OPTIONS: { value: import('./types').ReminderMinutes; label
   { value: 60,  label: '1 час' },
   { value: 180, label: '3 часа' },
   { value: 720, label: '12 часов' },
+];
+
+// Окно отмены автоответа ИИ на позитивные отзывы
+export const AUTO_SEND_DELAY_OPTIONS: { value: import('./types').AutoSendDelayMinutes; label: string }[] = [
+  { value: 5,  label: '5 мин' },
+  { value: 15, label: '15 мин' },
+  { value: 30, label: '30 мин' },
+  { value: 60, label: '1 час' },
 ];
 
 export const TONE_OPTIONS: { value: import('./types').AiTone; label: string }[] = [
