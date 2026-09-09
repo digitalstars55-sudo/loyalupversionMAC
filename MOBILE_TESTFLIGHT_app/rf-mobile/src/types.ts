@@ -164,6 +164,7 @@ export interface Review {
   auto_send_at?: string | null;   // ISO: scheduled — плановое время, sent — фактическое
   auto_send_reason?: string;      // машинный код причины (см. AUTO_SEND_REASONS в UI)
   auto_send_kind?: AutoSendKind;  // 'ack' — подтверждение на негатив, иначе ответ ИИ
+  auto_send_with_links?: boolean; // автоответ уйдёт с кнопками Яндекс/2ГИС (в черновике их нет)
   ai_needs_human?: boolean;       // в отзыве есть вопрос — автоответ не планируется
 }
 
