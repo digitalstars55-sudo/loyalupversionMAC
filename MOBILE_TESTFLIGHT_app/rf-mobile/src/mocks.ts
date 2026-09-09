@@ -456,6 +456,15 @@ export const AUTO_SEND_DELAY_OPTIONS: { value: import('./types').AutoSendDelayMi
   { value: 60, label: '1 час' },
 ];
 
+// Окно без ответа человека до автоподтверждения на негатив
+export const AUTO_ACK_DELAY_OPTIONS: { value: import('./types').AutoAckDelayMinutes; label: string }[] = [
+  { value: 5,   label: '5 мин' },
+  { value: 15,  label: '15 мин' },
+  { value: 30,  label: '30 мин' },
+  { value: 60,  label: '1 час' },
+  { value: 120, label: '2 часа' },
+];
+
 export const TONE_OPTIONS: { value: import('./types').AiTone; label: string }[] = [
   { value: 'formal',   label: 'Формальный' },
   { value: 'friendly', label: 'Дружелюбный' },

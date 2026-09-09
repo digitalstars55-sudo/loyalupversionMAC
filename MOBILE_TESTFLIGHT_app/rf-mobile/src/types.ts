@@ -163,6 +163,7 @@ export interface Review {
   auto_send_status?: AutoSendStatus;
   auto_send_at?: string | null;   // ISO: scheduled — плановое время, sent — фактическое
   auto_send_reason?: string;      // машинный код причины (см. AUTO_SEND_REASONS в UI)
+  auto_send_kind?: AutoSendKind;  // 'ack' — подтверждение на негатив, иначе ответ ИИ
   ai_needs_human?: boolean;       // в отзыве есть вопрос — автоответ не планируется
 }
 
@@ -203,10 +204,20 @@ export interface AutoReplySettings {
   auto_send_daily_limit?: number;                   // 1..500
   // branch_id → on/off. Ключа нет = включено (как branch_enabled).
   auto_send_branch_enabled?: Record<number, boolean>;
+
+  // ── Автоподтверждение на негатив («спасибо, разберёмся») ──
+  // Если за окно никто не ответил, ИИ шлёт короткую фразу; тред остаётся неотвеченным.
+  auto_ack_enabled?: boolean;
+  auto_ack_delay_minutes?: AutoAckDelayMinutes;
+  auto_ack_text?: string;                            // 1..300
 }
 
 // Окно отмены автоответа, минуты
 export type AutoSendDelayMinutes = 5 | 15 | 30 | 60;
+// Окно без ответа человека до автоподтверждения, минуты
+export type AutoAckDelayMinutes = 5 | 15 | 30 | 60 | 120;
+// Что именно запланировано/отправлено: полный ответ ИИ или подтверждение
+export type AutoSendKind = '' | 'reply' | 'ack';
 
 // ════════════════════════════════════════════════════════════════════
 // TAB NAVIGATION

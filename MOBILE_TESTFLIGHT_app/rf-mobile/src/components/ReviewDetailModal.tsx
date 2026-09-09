@@ -409,7 +409,9 @@ export const ReviewDetailModal: React.FC<{
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[s.rvDetailDraftSub, { color: C.purpleDeep, fontSize: 12.5, marginTop: 0 }]}>
-                    🤖 ИИ ответит автоматически {autoSendWhen(review.auto_send_at)}
+                    🤖 {review.auto_send_kind === 'ack'
+                      ? `ИИ напишет гостю «спасибо, разберёмся» ${autoSendWhen(review.auto_send_at)} — ответьте сами, чтобы отменить`
+                      : `ИИ ответит автоматически ${autoSendWhen(review.auto_send_at)}`}
                   </Text>
                 </View>
                 <Pressable
@@ -447,7 +449,9 @@ export const ReviewDetailModal: React.FC<{
                   <Bot size={13} color={C.good} strokeWidth={2.2} />
                 </View>
                 <Text style={[s.rvDetailDraftSub, { flex: 1, fontSize: 12.5, marginTop: 0, color: C.good }]}>
-                  🤖 Ответил ИИ · {autoSendStamp(review.auto_send_at)}
+                  🤖 {review.auto_send_kind === 'ack'
+                    ? `ИИ подтвердил получение · ${autoSendStamp(review.auto_send_at)} — ответьте гостю по существу`
+                    : `Ответил ИИ · ${autoSendStamp(review.auto_send_at)}`}
                 </Text>
               </View>
             )}

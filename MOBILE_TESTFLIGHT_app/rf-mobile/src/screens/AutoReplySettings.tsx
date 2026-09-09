@@ -11,12 +11,12 @@ import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import { sentimentMeta } from '../helpers';
 import { updateAutoReplySettings, fetchBranches } from '../api';
-import { REMINDER_OPTIONS, TONE_OPTIONS, AUTO_SEND_DELAY_OPTIONS } from '../mocks';
+import { REMINDER_OPTIONS, TONE_OPTIONS, AUTO_SEND_DELAY_OPTIONS, AUTO_ACK_DELAY_OPTIONS } from '../mocks';
 import { makeStyles } from '../styles';
 import { MOCK } from '../mocks';
 import type {
   AutoReplySettings as Settings, ReminderMinutes, AiTone, Sentiment, RFBranch,
-  AutoSendDelayMinutes,
+  AutoSendDelayMinutes, AutoAckDelayMinutes,
 } from '../types';
 
 // Безопасные дефолты для полей автоотправки: старый бэк их не отдаёт (undefined),
@@ -86,6 +86,28 @@ export const AutoReplySettings: React.FC<{
   const asLinksText = settings.auto_send_links_text ?? AS_DEFAULTS.linksText;
   const asLimit     = settings.auto_send_daily_limit ?? AS_DEFAULTS.limit;
   const asBranches  = settings.auto_send_branch_enabled ?? {};
+
+  // ── Автоподтверждение на негатив («спасибо, разберёмся») ────────────
+  const AA_DEFAULT_TEXT = 'Спасибо большое за обратную связь 🙏 Мы сейчас во всём разберёмся и обязательно вернёмся к вам с ответом.';
+  const aaEnabled = settings.auto_ack_enabled ?? false;
+  const aaDelay   = (settings.auto_ack_delay_minutes ?? 30) as AutoAckDelayMinutes;
+  const aaText    = settings.auto_ack_text ?? AA_DEFAULT_TEXT;
+  const [ackTextDraft, setAckTextDraft] = useState(aaText);
+  useEffect(() => { setAckTextDraft(settings.auto_ack_text ?? AA_DEFAULT_TEXT); }, [settings.auto_ack_text]);
+  const setAutoAck = (v: boolean) => {
+    haptic('light');
+    update({ ...settings, auto_ack_enabled: v });
+  };
+  const setAutoAckDelay = (m: AutoAckDelayMinutes) => {
+    haptic('light');
+    update({ ...settings, auto_ack_delay_minutes: m });
+  };
+  const commitAckText = () => {
+    const next = ackTextDraft.trim().slice(0, 300) || AA_DEFAULT_TEXT;
+    setAckTextDraft(next);
+    if (next === aaText) return;
+    update({ ...settings, auto_ack_text: next });
+  };
 
   // Локальные черновики текстовых полей — PATCH уходит по blur, не на каждый символ
   const [linksTextDraft, setLinksTextDraft] = useState(asLinksText);
@@ -453,6 +475,89 @@ export const AutoReplySettings: React.FC<{
                 Отзывы, пришедшие из сообщений сообщества ВК, не привязаны к точке — на них действует общий переключатель.
               </Text>
             </>
+          )}
+        </View>
+
+        {/* Автоподтверждение на негатив */}
+        <View style={[s.menuSection, dim && s.menuRowDisabled]}>
+          <Text style={s.menuSectionTitle}>🙏 Подтверждение на негатив</Text>
+          <View style={s.menuCard}>
+            <View style={[s.setRow, !aaEnabled && s.setRowLast]}>
+              <View style={s.setRowText}>
+                <Text style={s.setRowTitle}>
+                  <Bell size={13} color={C.ink} />  «Спасибо, разберёмся»
+                </Text>
+                <Text style={s.setRowSub}>
+                  Если на негативный отзыв никто не ответил за выбранное окно, ИИ отправит короткое подтверждение. Отзыв остаётся неотвеченным — по существу отвечаете вы.
+                </Text>
+              </View>
+              <Switch
+                value={aaEnabled}
+                onValueChange={setAutoAck}
+                disabled={!settings.enabled}
+                trackColor={{ false: C.line, true: C.purple }}
+                thumbColor={C.surface}
+                ios_backgroundColor={C.line}
+              />
+            </View>
+
+            {aaEnabled && (
+              <>
+                <View style={[s.setRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+                  <View style={s.setRowText}>
+                    <Text style={s.setRowTitle}>Окно без ответа</Text>
+                    <Text style={s.setRowSub}>Сколько ждать вашего ответа, прежде чем ИИ напишет гостю</Text>
+                  </View>
+                </View>
+                <View style={s.pillsRow}>
+                  {AUTO_ACK_DELAY_OPTIONS.map(opt => {
+                    const active = aaDelay === opt.value;
+                    return (
+                      <Pressable
+                        key={opt.value}
+                        style={[s.pill, active && s.pillActive]}
+                        {...ripple('rgba(255,255,255,0.18)')}
+                        onPress={() => setAutoAckDelay(opt.value)}
+                        disabled={!settings.enabled}
+                      >
+                        <Text style={[s.pillText, active && s.pillTextActive]}>{opt.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <View style={[s.setRow, s.setRowLast, { borderTopWidth: 1, borderTopColor: C.lineSoft, flexDirection: 'column', alignItems: 'stretch' }]}>
+                  <View style={s.setRowText}>
+                    <Text style={s.setRowTitle}>Текст подтверждения</Text>
+                    <Text style={s.setRowSub}>Одна фраза для всех негативных отзывов, без обещаний и скидок (до 300 символов)</Text>
+                  </View>
+                  <View style={{
+                    marginTop: 8,
+                    backgroundColor: C.surface,
+                    borderWidth: 1, borderColor: C.line, borderRadius: 10,
+                    paddingHorizontal: 12,
+                  }}>
+                    <TextInput
+                      value={ackTextDraft}
+                      onChangeText={setAckTextDraft}
+                      onBlur={commitAckText}
+                      onEndEditing={commitAckText}
+                      placeholder={AA_DEFAULT_TEXT}
+                      placeholderTextColor={C.ink4}
+                      maxLength={300}
+                      multiline
+                      editable={settings.enabled}
+                      style={[s.fieldInput, { paddingVertical: 10, minHeight: 64, textAlignVertical: 'top' }]}
+                    />
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+          {aaEnabled && (
+            <Text style={[s.setRowSub, { paddingHorizontal: 14, marginTop: 8 }]}>
+              Точки и лимит в сутки — общие с автоотправкой позитивных. Перед отправкой придёт пуш «ИИ напишет в HH:MM» — отменить можно из карточки отзыва или просто ответив самому.
+            </Text>
           )}
         </View>
       </ScrollView>
