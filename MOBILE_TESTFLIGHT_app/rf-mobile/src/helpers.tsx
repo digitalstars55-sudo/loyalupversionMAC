@@ -144,7 +144,8 @@ const _mskShortDateTime = (iso: string | null | undefined): string => {
 // поэтому в UI показываем приглушённо и с пометкой «по скану».
 // Старый бэк полей не отдаёт → null → всё как раньше.
 export const inferredPointLabel = (review: Review): string | null => {
-  const hasBranch = !!(review.branch_name || '').trim();
+  // У ВК-тредов бэк отдаёт branch_name = «ВК группа», поэтому смотрим на branch_id.
+  const hasBranch = !!review.branch_id;
   const name = (review.inferred_branch_name || '').trim();
   if (hasBranch || !name) return null;
   let label = `📍 ${name}`;
