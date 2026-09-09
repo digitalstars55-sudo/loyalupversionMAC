@@ -33,6 +33,8 @@ const AUTO_SEND_REASONS: Record<string, string> = {
   config_off:        'автоотправка выключена',
   draft_changed:     'черновик изменился',
   cancelled_by_user: 'отменено вручную',
+  guest_wrote_again: 'гость написал ещё — черновик обновляется',
+  superseded:        'заменено новым планом',
 };
 
 export const autoSendReasonText = (code?: string): string => {
