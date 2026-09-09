@@ -10,7 +10,7 @@ import { C } from '../theme';
 import { useResponsive } from '../responsive';
 import { haptic, ripple } from '../platform';
 import {
-  fmtNum, sentimentMeta, avatarColor, initials, relativeTime,
+  fmtNum, sentimentMeta, avatarColor, initials, relativeTime, inferredPointLabel,
 } from '../helpers';
 import { fetchReviews, markReviewResolved } from '../api';
 import { makeStyles } from '../styles';
@@ -755,6 +755,8 @@ const ReviewCard: React.FC<{
 }> = ({ rev, onPress, onLongPress, selectionMode, selected, s }) => {
   const meta = sentimentMeta(rev.sentiment);
   const unread = rev.has_unread && !rev.is_replied;
+  // Подсказка «предполагаемая точка» — только для тредов без точки (ВК)
+  const inferredPoint = inferredPointLabel(rev);
 
   return (
     <Pressable
@@ -812,7 +814,18 @@ const ReviewCard: React.FC<{
               </Text>
             </View>
           ))}
-          <Text style={s.rvCardBranch}>{rev.branch_name}</Text>
+          {inferredPoint ? (
+            <Text
+              style={[s.rvCardBranch, {
+                color: C.hintInk, backgroundColor: C.hintBg, borderColor: C.hintLine, flexShrink: 1,
+              }]}
+              numberOfLines={1}
+            >
+              {inferredPoint}
+            </Text>
+          ) : (
+            <Text style={s.rvCardBranch}>{rev.branch_name}</Text>
+          )}
           {(rev.sources ?? [rev.source]).includes('APP') && rev.rating != null && (
             <View style={s.rvCardStarsRow}>
               {[1, 2, 3, 4, 5].map(i => (

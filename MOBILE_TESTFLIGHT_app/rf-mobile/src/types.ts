@@ -166,6 +166,15 @@ export interface Review {
   auto_send_kind?: AutoSendKind;  // 'ack' — подтверждение на негатив, иначе ответ ИИ
   auto_send_with_links?: boolean; // автоответ уйдёт с кнопками Яндекс/2ГИС (в черновике их нет)
   ai_needs_human?: boolean;       // в отзыве есть вопрос — автоответ не планируется
+  // ── Предполагаемая точка (подсказка по последнему скану QR гостя) ──
+  // Для тредов из ВК-группы, где точки нет (branch_id = 0/null, branch_name пустой).
+  // Это ДОГАДКА бэка по последнему сканированию, а НЕ выбор гостя.
+  // Все поля опциональны: старый бэк их не отдаёт — UI работает как раньше.
+  inferred_branch_id?: number | null;
+  inferred_branch_name?: string;          // пусто, если подсказки нет
+  inferred_table_number?: number | null;
+  inferred_scan_at?: string | null;       // ISO — когда был скан
+  inferred_source?: '' | 'qr_scan' | 'visit';
 }
 
 // Статус автоотправки ответа ИИ. '' — автоотправка к отзыву не применялась.

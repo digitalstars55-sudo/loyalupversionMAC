@@ -128,6 +128,32 @@ export const dayKey = (iso: string): string => {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 };
 
+// ── Предполагаемая точка (подсказка по последнему скану QR) ─────────
+// «14.02 18:35» по Москве. Сдвигаем на UTC+3 и читаем через getUTC* —
+// без Intl/timeZone и без новых зависимостей, результат одинаков на любом устройстве.
+const _mskShortDateTime = (iso: string | null | undefined): string => {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t + 3 * 3600 * 1000);
+  return `${_pad(d.getUTCDate())}.${_pad(d.getUTCMonth() + 1)} ${_pad(d.getUTCHours())}:${_pad(d.getUTCMinutes())}`;
+};
+
+// У тредов из ВК-группы точки нет (branch_name пустой). Бэк может подсказать,
+// где гость последний раз сканировал QR — это ДОГАДКА, а не выбор гостя,
+// поэтому в UI показываем приглушённо и с пометкой «по скану».
+// Старый бэк полей не отдаёт → null → всё как раньше.
+export const inferredPointLabel = (review: Review): string | null => {
+  const hasBranch = !!(review.branch_name || '').trim();
+  const name = (review.inferred_branch_name || '').trim();
+  if (hasBranch || !name) return null;
+  let label = `📍 ${name}`;
+  if (review.inferred_table_number != null) label += ` · стол ${review.inferred_table_number}`;
+  const scan = _mskShortDateTime(review.inferred_scan_at);
+  if (scan) label += ` · по скану ${scan}`;
+  return label;
+};
+
 // ── Aggregations: avg-rating per branch (из APP-отзывов) ───────────
 export interface BranchRating {
   branch_id: number;

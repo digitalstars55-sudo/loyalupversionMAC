@@ -14,7 +14,7 @@ import { C } from '../theme';
 import { haptic, ripple } from '../platform';
 import {
   sentimentMeta, sourceLabel, avatarColor, initials, relativeTime,
-  chatTime, dayKey, dayLabel,
+  chatTime, dayKey, dayLabel, inferredPointLabel,
 } from '../helpers';
 import { fetchReviewMessages, appendReviewMessage, markReviewResolved, regenerateDraft, rejectDraft, cancelAutoSend } from '../api';
 import type { Review, TestimonialMessage, AutoSendStatus } from '../types';
@@ -123,6 +123,8 @@ export const ReviewDetailModal: React.FC<{
   if (!review) return null;
 
   const meta = sentimentMeta(review.sentiment);
+  // Подсказка «предполагаемая точка» — только для тредов без точки (ВК)
+  const inferredPoint = inferredPointLabel(review);
   const sources = review.sources ?? [review.source];
   const isVk = sources.includes('VK_MESSAGE');
   // Ответить можно ЛЮБОМУ гостю с vk_sender_id — и тому, кто писал в группу,
@@ -327,8 +329,12 @@ export const ReviewDetailModal: React.FC<{
             </View>
             <View style={s.rvDetailHeadText}>
               <Text style={s.rvDetailName} numberOfLines={1} ellipsizeMode="tail">{review.customer_name}</Text>
-              <Text style={s.rvDetailMeta} numberOfLines={1} ellipsizeMode="tail">
-                {review.branch_name} · {sourceLabel(review.source)}
+              <Text
+                style={[s.rvDetailMeta, inferredPoint ? { color: C.hintInk } : null]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {inferredPoint || review.branch_name} · {sourceLabel(review.source)}
               </Text>
             </View>
             <Pressable style={s.modalClose} {...ripple()} onPress={onClose}>
